@@ -1,0 +1,163 @@
+/* ==========================================================================
+   SIXTIFI HELPDESK MY REQUESTS PAGE STYLES (EMPLOYEE SELF-SERVICE)
+   ========================================================================== */
+
+.my-requests-container {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  width: 100%;
+}
+
+/* --- Section 1: Summary KPI Cards (4 Cards) --- */
+.summary-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--space-4);
+}
+
+.summary-kpi-card {
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  padding: var(--space-4) var(--space-5);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  box-shadow: var(--shadow-xs);
+  transition: transform var(--transition-fast), border-color var(--transition-fast);
+  cursor: pointer;
+}
+
+.summary-kpi-card:hover {
+  border-color: var(--border-strong);
+  transform: translateY(-1px);
+}
+
+.summary-kpi-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.summary-kpi-title {
+  font-size: var(--text-xs);
+  font-weight: var(--font-weight-semibold);
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.summary-kpi-value {
+  font-size: var(--text-2xl);
+  font-weight: var(--font-weight-bold);
+  color: var(--text-primary);
+  line-height: 1.1;
+  margin-top: 2px;
+}
+
+/* --- Section 6: Quick Request Shortcuts --- */
+.quick-access-card {
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  padding: var(--space-4) var(--space-5);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+}
+
+.quick-access-left {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.quick-access-title {
+  font-size: var(--text-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--text-primary);
+}
+
+.quick-shortcuts-list {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.shortcut-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1-5);
+  padding: var(--space-1-5) var(--space-3);
+  background-color: var(--bg-subtle);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-full);
+  font-size: var(--text-xs);
+  font-weight: var(--font-weight-medium);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.shortcut-chip:hover {
+  background-color: var(--color-primary-50);
+  border-color: var(--color-primary-200);
+  color: var(--color-primary-700);
+}
+
+/* --- Section 2: Request List Toolbar --- */
+.table-filter-toolbar {
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  padding: var(--space-4);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.filter-controls-left {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex: 1;
+  min-width: 280px;
+  flex-wrap: wrap;
+}
+
+/* --- Clickable Row Hover State for Full-Page Navigation --- */
+.enterprise-table tbody tr {
+  cursor: pointer;
+  transition: background-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.enterprise-table tbody tr:hover {
+  background-color: #F8FAFC;
+}
+
+.enterprise-table tbody tr:hover .table-cell-id {
+  text-decoration: underline;
+}
+
+.enterprise-table tbody tr:hover .table-cell-subject {
+  color: var(--color-primary-700);
+}
+
+/* Responsive Grid Rules */
+@media (max-width: 1024px) {
+  .summary-kpi-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 640px) {
+  .summary-kpi-grid {
+    grid-template-columns: 1fr;
+  }
+}

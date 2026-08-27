@@ -1,0 +1,130 @@
+/* --- Badge Component Styles --- */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1-5);
+  padding: 2px var(--space-2-5);
+  font-size: var(--text-xs);
+  font-weight: var(--font-weight-medium);
+  border-radius: var(--radius-full);
+  line-height: 1.25;
+  white-space: nowrap;
+  letter-spacing: 0.01em;
+  border: 1px solid transparent;
+}
+
+.badge-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+/* Status Badges */
+.badge-status-open {
+  background-color: var(--status-open-bg);
+  color: var(--status-open-text);
+  border-color: var(--status-open-border);
+}
+.badge-status-open .badge-dot {
+  background-color: var(--status-open-dot);
+}
+
+.badge-status-assigned {
+  background-color: var(--status-assigned-bg);
+  color: var(--status-assigned-text);
+  border-color: var(--status-assigned-border);
+}
+.badge-status-assigned .badge-dot {
+  background-color: var(--status-assigned-dot);
+}
+
+.badge-status-inprogress {
+  background-color: var(--status-inprogress-bg);
+  color: var(--status-inprogress-text);
+  border-color: var(--status-inprogress-border);
+}
+.badge-status-inprogress .badge-dot {
+  background-color: var(--status-inprogress-dot);
+}
+
+.badge-status-resolved {
+  background-color: var(--status-resolved-bg);
+  color: var(--status-resolved-text);
+  border-color: var(--status-resolved-border);
+}
+.badge-status-resolved .badge-dot {
+  background-color: var(--status-resolved-dot);
+}
+
+.badge-status-closed {
+  background-color: var(--status-closed-bg);
+  color: var(--status-closed-text);
+  border-color: var(--status-closed-border);
+}
+.badge-status-closed .badge-dot {
+  background-color: var(--status-closed-dot);
+}
+
+.badge-status-reopened {
+  background-color: var(--status-reopened-bg);
+  color: var(--status-reopened-text);
+  border-color: var(--status-reopened-border);
+}
+.badge-status-reopened .badge-dot {
+  background-color: var(--status-reopened-dot);
+}
+
+.badge-status-waitingforemployee {
+  background-color: #FEF3C7;
+  color: #92400E;
+  border-color: #FDE68A;
+}
+.badge-status-waitingforemployee .badge-dot {
+  background-color: #D97706;
+}
+
+/* Priority Badges */
+.badge-priority {
+  border-radius: var(--radius-xs);
+  padding: 2px var(--space-2);
+  font-weight: var(--font-weight-semibold);
+  font-size: var(--text-xs);
+}
+
+.badge-priority-low {
+  background-color: var(--priority-low-bg);
+  color: var(--priority-low-text);
+  border-color: var(--priority-low-border);
+}
+
+.badge-priority-medium {
+  background-color: var(--priority-medium-bg);
+  color: var(--priority-medium-text);
+  border-color: var(--priority-medium-border);
+}
+
+.badge-priority-high {
+  background-color: var(--priority-high-bg);
+  color: var(--priority-high-text);
+  border-color: var(--priority-high-border);
+}
+
+.badge-priority-urgent {
+  background-color: var(--priority-urgent-bg);
+  color: var(--priority-urgent-text);
+  border-color: var(--priority-urgent-border);
+}
+
+/* Generic Neutral & Alert Badges */
+.badge-neutral {
+  background-color: var(--bg-subtle);
+  color: var(--text-secondary);
+  border-color: var(--border-default);
+}
+
+.badge-brand {
+  background-color: var(--color-primary-50);
+  color: var(--color-primary-700);
+  border-color: var(--color-primary-200);
+}

@@ -1,0 +1,46 @@
+/* --- Empty State CSS --- */
+.empty-state-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: var(--space-12) var(--space-6);
+  background-color: var(--bg-surface);
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-md);
+}
+
+.empty-state-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background-color: var(--bg-subtle);
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: var(--space-4);
+  border: 1px solid var(--border-default);
+}
+
+.empty-state-title {
+  font-size: var(--text-base);
+  font-weight: var(--font-weight-semibold);
+  color: var(--text-primary);
+  margin-bottom: var(--space-1);
+}
+
+.empty-state-description {
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+  max-width: 380px;
+  margin-bottom: var(--space-5);
+  line-height: 1.5;
+}
+
+.empty-state-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}

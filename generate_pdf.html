@@ -1,0 +1,575 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Sixtifi Helpdesk — Complete Module Documentation</title>
+  <style>
+    @page {
+      size: A4;
+      margin: 18mm 15mm 18mm 15mm;
+      @bottom-right {
+        content: counter(page);
+      }
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      color: #1E293B;
+      background-color: #FFFFFF;
+      line-height: 1.5;
+      font-size: 13px;
+    }
+
+    /* --- Cover Page --- */
+    .cover-page {
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 40px;
+      background: linear-gradient(135deg, #0F172A 0%, #1E1B4B 100%);
+      color: #FFFFFF;
+      page-break-after: always;
+      border-radius: 8px;
+    }
+
+    .cover-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .cover-logo {
+      width: 44px;
+      height: 44px;
+      background-color: #4F46E5;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      font-size: 22px;
+    }
+
+    .cover-brand {
+      font-size: 24px;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+    }
+
+    .cover-body {
+      margin-top: auto;
+      margin-bottom: auto;
+    }
+
+    .cover-title {
+      font-size: 38px;
+      font-weight: 800;
+      line-height: 1.15;
+      letter-spacing: -0.03em;
+      color: #F8FAFC;
+      margin-bottom: 12px;
+    }
+
+    .cover-subtitle {
+      font-size: 18px;
+      color: #94A3B8;
+      font-weight: 400;
+      max-width: 600px;
+      margin-bottom: 24px;
+    }
+
+    .cover-badge {
+      display: inline-block;
+      padding: 6px 14px;
+      background-color: rgba(79, 70, 229, 0.3);
+      border: 1px solid #6366F1;
+      border-radius: 20px;
+      color: #A5B4FC;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+    }
+
+    .cover-footer {
+      display: flex;
+      justify-content: space-between;
+      border-top: 1px solid rgba(255, 255, 255, 0.15);
+      padding-top: 16px;
+      font-size: 12px;
+      color: #64748B;
+    }
+
+    /* --- Content Layout --- */
+    .section {
+      margin-bottom: 28px;
+      page-break-inside: avoid;
+    }
+
+    h1.section-title {
+      font-size: 20px;
+      font-weight: 800;
+      color: #0F172A;
+      border-bottom: 2px solid #4F46E5;
+      padding-bottom: 6px;
+      margin-bottom: 14px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    h2.subsection-title {
+      font-size: 15px;
+      font-weight: 700;
+      color: #1E293B;
+      margin-top: 16px;
+      margin-bottom: 8px;
+    }
+
+    p {
+      margin-bottom: 10px;
+      color: #334155;
+    }
+
+    /* --- Summary Grid Cards --- */
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+
+    .grid-4 {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+
+    .card {
+      background-color: #F8FAFC;
+      border: 1px solid #E2E8F0;
+      border-radius: 6px;
+      padding: 12px;
+    }
+
+    .card-title {
+      font-size: 11px;
+      font-weight: 700;
+      color: #64748B;
+      text-transform: uppercase;
+      margin-bottom: 4px;
+    }
+
+    .card-val {
+      font-size: 18px;
+      font-weight: 800;
+      color: #0F172A;
+    }
+
+    /* --- Tables --- */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 14px;
+      font-size: 12px;
+    }
+
+    th {
+      background-color: #F1F5F9;
+      color: #475569;
+      font-weight: 700;
+      text-align: left;
+      padding: 8px 10px;
+      border-bottom: 1px solid #CBD5E1;
+      text-transform: uppercase;
+      font-size: 10px;
+      letter-spacing: 0.03em;
+    }
+
+    td {
+      padding: 8px 10px;
+      border-bottom: 1px solid #E2E8F0;
+      color: #334155;
+    }
+
+    tr:nth-child(even) td {
+      background-color: #F8FAFC;
+    }
+
+    /* --- Badges --- */
+    .badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 12px;
+      font-size: 10px;
+      font-weight: 700;
+    }
+
+    .badge-purple { background-color: #EEF2FF; color: #4338CA; border: 1px solid #C7D2FE; }
+    .badge-green { background-color: #ECFDF5; color: #047857; border: 1px solid #A7F3D0; }
+    .badge-amber { background-color: #FEF3C7; color: #B45309; border: 1px solid #FDE68A; }
+    .badge-red { background-color: #FEF2F2; color: #B91C1C; border: 1px solid #FECACA; }
+    .badge-blue { background-color: #EFF6FF; color: #1D4ED8; border: 1px solid #BFDBFE; }
+
+    .callout {
+      background-color: #F0F9FF;
+      border-left: 4px solid #0284C7;
+      padding: 10px 14px;
+      border-radius: 0 6px 6px 0;
+      margin-bottom: 14px;
+      font-size: 12px;
+      color: #0369A1;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- COVER PAGE -->
+  <div class="cover-page">
+    <div class="cover-header">
+      <div class="cover-logo">S</div>
+      <div class="cover-brand">Sixtifi WFM</div>
+    </div>
+
+    <div class="cover-body">
+      <span class="cover-badge">Complete Module Specification</span>
+      <h1 class="cover-title">Sixtifi Helpdesk</h1>
+      <p class="cover-subtitle">Enterprise Workforce Helpdesk UI/UX Design System, Multi-Role Workflows, SLA Engine, Category Routing & Analytical Reporting.</p>
+    </div>
+
+    <div class="cover-footer">
+      <div>Project: Sixtifi Workforce Platform</div>
+      <div>Date: August 2026</div>
+      <div>Version: 1.0 Production Blueprint</div>
+    </div>
+  </div>
+
+  <!-- EXECUTIVE SUMMARY -->
+  <div class="section">
+    <h1 class="section-title">1. Executive Overview & Purpose</h1>
+    <p>The <strong>Sixtifi Helpdesk</strong> is the central workforce management workspace designed for employees, support agents, HR managers, and system administrators. It handles internal workforce requests across Attendance, Leave, Payroll, HR, IT, and Administration with enterprise-grade UX standards.</p>
+
+    <div class="grid-4">
+      <div class="card">
+        <div class="card-title">Total Screens</div>
+        <div class="card-val">11 Pages</div>
+      </div>
+      <div class="card">
+        <div class="card-title">Routing Rules</div>
+        <div class="card-val">100% Full-Page</div>
+      </div>
+      <div class="card">
+        <div class="card-title">SLA Compliance</div>
+        <div class="card-val">94% Target</div>
+      </div>
+      <div class="card">
+        <div class="card-title">User Roles</div>
+        <div class="card-val">5 Roles</div>
+      </div>
+    </div>
+
+    <div class="callout">
+      <strong>Core Routing Directive:</strong> All Helpdesk ticket details, team management forms, and category detail views open exclusively as dedicated full-page routes inside the Sixtifi application shell (`/helpdesk/tickets/:ticketId`). Drawers, modals, popups, and side panels are strictly prohibited for viewing tickets.
+    </div>
+  </div>
+
+  <!-- SCREEN CATALOG -->
+  <div class="section">
+    <h1 class="section-title">2. Complete Screen Catalog (11 Full-Page Modules)</h1>
+
+    <table>
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Screen Name</th>
+          <th>Route Concept</th>
+          <th>Target Role</th>
+          <th>Key Purpose & Features</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>1</td>
+          <td><strong>Helpdesk Dashboard</strong></td>
+          <td>`/helpdesk/dashboard`</td>
+          <td>All Users / Agents</td>
+          <td>Central operational dashboard featuring summary KPIs, 30-day ticket volume trends, urgent attention feed, category breakdown, and quick actions.</td>
+        </tr>
+        <tr>
+          <td>2</td>
+          <td><strong>My Requests</strong></td>
+          <td>`/helpdesk/my-requests`</td>
+          <td>Employee</td>
+          <td>Employee self-service tracking workspace displaying personal request summary metrics, search & filter toolbar, and full-page ticket navigation.</td>
+        </tr>
+        <tr>
+          <td>3</td>
+          <td><strong>Raise Request</strong></td>
+          <td>`/helpdesk/requests/new`</td>
+          <td>Employee</td>
+          <td>Dedicated full-page request submission form with category cards, inline validation error hints, file uploader (10MB limit), and subcategory options.</td>
+        </tr>
+        <tr>
+          <td>4</td>
+          <td><strong>Ticket Detail Workspace</strong></td>
+          <td>`/helpdesk/tickets/:ticketId`</td>
+          <td>Employee / Agent / Admin</td>
+          <td>Full-page 2-column workspace featuring vertical conversation timeline, public vs internal agent notes, SLA progress bar, attachments, activity audit log, and role action controls.</td>
+        </tr>
+        <tr>
+          <td>5</td>
+          <td><strong>All Tickets</strong></td>
+          <td>`/helpdesk/tickets`</td>
+          <td>Agent / HR / Lead</td>
+          <td>Operational management queue with 7 KPI summary cards, 7 queue tabs, multi-filter toolbar, active removable filter chips, bulk actions bar, and inline assignment modal.</td>
+        </tr>
+        <tr>
+          <td>6</td>
+          <td><strong>My Assigned Tickets</strong></td>
+          <td>`/helpdesk/assigned-tickets`</td>
+          <td>Support Agent / Lead</td>
+          <td>Agent-focused workload workspace with 5 KPI cards (Assigned to Me, Due Today, SLA At Risk, High Priority, Waiting for Employee), SLA urgency sorting, Recently Assigned panel, and full-page ticket links.</td>
+        </tr>
+        <tr>
+          <td>7</td>
+          <td><strong>Helpdesk Teams</strong></td>
+          <td>`/helpdesk/teams`</td>
+          <td>Helpdesk Admin / HR Lead</td>
+          <td>Configuration queue for support teams (HR Support, Payroll Support, IT Support, Administration Support), full-page Team Lead form, Team Detail workspace with tabs, and member stacks.</td>
+        </tr>
+        <tr>
+          <td>8</td>
+          <td><strong>Helpdesk Categories</strong></td>
+          <td>`/helpdesk/categories`</td>
+          <td>Helpdesk Admin / HR Lead</td>
+          <td>Category configuration module (Attendance, Leave, Payroll, HR, IT, Administration), subcategory builder table, full-page Category Detail workspace, and Configured Automation Pipeline diagram.</td>
+        </tr>
+        <tr>
+          <td>9</td>
+          <td><strong>SLA & Escalation</strong></td>
+          <td>`/helpdesk/sla`</td>
+          <td>Helpdesk Admin / Lead</td>
+          <td>SLA policy management module with 4 priority targets (Urgent 1h/4h, High 4h/1d, Medium 8h/2d, Low 1d/3d), working calendar, warning threshold diagram (80%), and 3-level escalation matrix.</td>
+        </tr>
+        <tr>
+          <td>10</td>
+          <td><strong>Reports & Analytics</strong></td>
+          <td>`/helpdesk/reports`</td>
+          <td>Admin / Lead / Manager</td>
+          <td>Operational management dashboard featuring Executive Summary KPIs, dual-curve request volume trend chart, category breakdown, resolution performance bottleneck callout, team workload table, and top request types.</td>
+        </tr>
+        <tr>
+          <td>11</td>
+          <td><strong>Helpdesk Settings</strong></td>
+          <td>`/helpdesk/settings`</td>
+          <td>System Admin</td>
+          <td>Administrative configuration workspace with 4 tabs: General Settings, Email & Notification Rules, SLA & Routing Defaults, and Role Access Permission Matrix.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- TICKET LIFECYCLE & SLA SCHEMAS -->
+  <div class="section">
+    <h1 class="section-title">3. Ticket Lifecycle & SLA Urgency Rules</h1>
+
+    <h2 class="subsection-title">Ticket Status Transitions</h2>
+    <p>Every workforce request follows a standardized lifecycle transition model:</p>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Status Badge</th>
+          <th>Visual Color</th>
+          <th>Meaning & Workflow State</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><span class="badge badge-purple">Open</span></td>
+          <td>Purple (`#6366F1`)</td>
+          <td>Request logged by employee, awaiting team or agent assignment.</td>
+        </tr>
+        <tr>
+          <td><span class="badge badge-blue">Assigned</span></td>
+          <td>Blue (`#3B82F6`)</td>
+          <td>Assigned to specific support agent in the responsible department team.</td>
+        </tr>
+        <tr>
+          <td><span class="badge badge-blue">In Progress</span></td>
+          <td>Dark Blue (`#1D4ED8`)</td>
+          <td>Agent actively working on investigating or resolving the request.</td>
+        </tr>
+        <tr>
+          <td><span class="badge badge-amber">Waiting for Employee</span></td>
+          <td>Amber (`#D97706`)</td>
+          <td>Support agent requested clarification or document submission from employee. Renders "Action Required" alert banner for employee.</td>
+        </tr>
+        <tr>
+          <td><span class="badge badge-green">Resolved</span></td>
+          <td>Green (`#10B981`)</td>
+          <td>Agent completed resolution. Employee can reopen within 14 days if needed.</td>
+        </tr>
+        <tr>
+          <td><span class="badge badge-green">Closed</span></td>
+          <td>Slate Green (`#047857`)</td>
+          <td>Final status after auto-close window (7 days) or manual agent close out.</td>
+        </tr>
+        <tr>
+          <td><span class="badge badge-amber">Reopened</span></td>
+          <td>Orange Amber (`#F59E0B`)</td>
+          <td>Employee reopened request due to unfulfilled resolution or recurring issue.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h2 class="subsection-title">SLA Priority Target Matrix</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Priority Tier</th>
+          <th>Badge Styling</th>
+          <th>Response SLA Target</th>
+          <th>Resolution SLA Target</th>
+          <th>Warning Threshold</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Urgent</strong></td>
+          <td><span class="badge badge-red">Urgent</span></td>
+          <td>1 Working Hour</td>
+          <td>4 Working Hours</td>
+          <td>80% (3h 12m)</td>
+        </tr>
+        <tr>
+          <td><strong>High</strong></td>
+          <td><span class="badge badge-amber">High</span></td>
+          <td>4 Working Hours</td>
+          <td>1 Working Day (8h)</td>
+          <td>80% (6h 24m)</td>
+        </tr>
+        <tr>
+          <td><strong>Medium</strong></td>
+          <td><span class="badge badge-blue">Medium</span></td>
+          <td>8 Working Hours</td>
+          <td>2 Working Days (16h)</td>
+          <td>80% (12h 48m)</td>
+        </tr>
+        <tr>
+          <td><strong>Low</strong></td>
+          <td><span class="badge">Low</span></td>
+          <td>1 Working Day (8h)</td>
+          <td>3 Working Days (24h)</td>
+          <td>80% (19h 12m)</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- ROLE PERMISSIONS MATRIX -->
+  <div class="section">
+    <h1 class="section-title">4. Role Access Permission Matrix</h1>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Capability / Function</th>
+          <th>Employee</th>
+          <th>Support Agent</th>
+          <th>Team Lead</th>
+          <th>HR / Admin</th>
+          <th>System Admin</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Raise Workforce Request</td>
+          <td>Yes</td>
+          <td>Yes</td>
+          <td>Yes</td>
+          <td>Yes</td>
+          <td>Yes</td>
+        </tr>
+        <tr>
+          <td>View Personal Requests</td>
+          <td>Yes</td>
+          <td>Yes</td>
+          <td>Yes</td>
+          <td>Yes</td>
+          <td>Yes</td>
+        </tr>
+        <tr>
+          <td>Work Assigned Workload Queue</td>
+          <td>No</td>
+          <td>Yes</td>
+          <td>Yes</td>
+          <td>Yes</td>
+          <td>Yes</td>
+        </tr>
+        <tr>
+          <td>Post Internal Agent Notes</td>
+          <td>No</td>
+          <td>Yes</td>
+          <td>Yes</td>
+          <td>Yes</td>
+          <td>Yes</td>
+        </tr>
+        <tr>
+          <td>Reassign Agent & Resolve Ticket</td>
+          <td>No</td>
+          <td>Yes</td>
+          <td>Yes</td>
+          <td>Yes</td>
+          <td>Yes</td>
+        </tr>
+        <tr>
+          <td>Manage Helpdesk Teams & Categories</td>
+          <td>No</td>
+          <td>No</td>
+          <td>No</td>
+          <td>Yes</td>
+          <td>Yes</td>
+        </tr>
+        <tr>
+          <td>Configure SLA Policies & Settings</td>
+          <td>No</td>
+          <td>No</td>
+          <td>No</td>
+          <td>No</td>
+          <td>Yes</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- CONCLUSION -->
+  <div class="section">
+    <h1 class="section-title">5. Technical Verification & Build Status</h1>
+    <p>The Sixtifi Helpdesk frontend application is fully compiled, verified, and active on the local development environment.</p>
+
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-title">Compilation Verification</div>
+        <div class="card-val" style="color: #10B981; font-size: 15px;">✓ Zero TypeScript Compilation Errors</div>
+        <p style="font-size: 11px; color: #64748B; margin-top: 4px;">Verified via `npm run build` with Vite production bundle.</p>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Live Dev Server</div>
+        <div class="card-val" style="color: #4F46E5; font-size: 15px;">http://localhost:3000/</div>
+        <p style="font-size: 11px; color: #64748B; margin-top: 4px;">Active full-page route switching inside Sixtifi Shell.</p>
+      </div>
+    </div>
+  </div>
+
+</body>
+</html>

@@ -1,0 +1,183 @@
+/* --- Application Shell Top Header CSS --- */
+.app-header {
+  height: 64px;
+  background-color: var(--bg-surface);
+  border-bottom: 1px solid var(--border-default);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 var(--space-6);
+  position: sticky;
+  top: 0;
+  z-index: 90;
+  box-shadow: var(--shadow-xs);
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+.header-company-switcher {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 36px;
+  padding: 0 10px 0 12px;
+  background-color: var(--bg-subtle);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  min-width: 200px;
+}
+
+.header-company-icon {
+  color: var(--color-primary-600);
+  flex-shrink: 0;
+}
+
+.header-company-select {
+  border: none;
+  background: transparent;
+  outline: none;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary);
+  width: 100%;
+  cursor: pointer;
+  padding-right: 4px;
+}
+
+.header-search-wrapper {
+  position: relative;
+  width: 320px;
+}
+
+.header-search-input {
+  width: 100%;
+  height: 36px;
+  padding: 0 40px 0 36px;
+  font-size: var(--text-xs);
+  background-color: var(--bg-subtle);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  outline: none;
+  transition: all var(--transition-fast);
+  color: var(--text-primary);
+}
+
+.header-search-input:focus {
+  background-color: var(--bg-surface);
+  border-color: var(--color-primary-500);
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+}
+
+.header-search-icon {
+  position: absolute;
+  left: var(--space-3);
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-muted);
+  pointer-events: none;
+}
+
+.header-search-shortcut {
+  position: absolute;
+  right: var(--space-2-5);
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 10px;
+  font-family: var(--font-family-mono);
+  font-weight: 600;
+  color: var(--text-muted);
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-xs);
+  padding: 1px 5px;
+  pointer-events: none;
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+.header-notification-btn {
+  position: relative;
+  background: transparent;
+  border: none;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: background-color var(--transition-fast);
+}
+
+.header-notification-btn:hover {
+  background-color: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.notification-unread-dot {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 8px;
+  height: 8px;
+  background-color: #EF4444;
+  border-radius: 50%;
+  border: 2px solid var(--bg-surface);
+}
+
+.header-user-profile {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2-5);
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background-color var(--transition-fast);
+  border: 1px solid transparent;
+}
+
+.header-user-profile:hover {
+  background-color: var(--bg-hover);
+  border-color: var(--border-default);
+}
+
+.user-avatar-circle {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #4338CA 0%, #6366F1 100%);
+  color: #FFFFFF;
+  font-weight: var(--font-weight-bold);
+  font-size: var(--text-xs);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid #FFFFFF;
+  box-shadow: 0 0 0 1px var(--color-primary-200);
+}
+
+.user-info-text {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.25;
+}
+
+.user-display-name {
+  font-weight: var(--font-weight-semibold);
+  font-size: var(--text-xs);
+  color: var(--text-primary);
+}
+
+.user-display-role {
+  font-size: 11px;
+  color: var(--text-muted);
+}

@@ -1,0 +1,117 @@
+/* ==========================================================================
+   SIXTIFI HELPDESK SETTINGS PAGE STYLES
+   ========================================================================== */
+
+.settings-container {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  width: 100%;
+}
+
+.settings-card {
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  padding: var(--space-5);
+  box-shadow: var(--shadow-xs);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.settings-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--border-subtle);
+  padding-bottom: var(--space-3);
+}
+
+.settings-card-title {
+  font-size: var(--text-base);
+  font-weight: var(--font-weight-bold);
+  color: var(--text-primary);
+}
+
+.settings-card-subtitle {
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+  margin-top: 2px;
+}
+
+/* Settings Form Grid */
+.settings-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--space-4);
+}
+
+.settings-section-divider {
+  height: 1px;
+  background-color: var(--border-subtle);
+  margin: var(--space-2) 0;
+}
+
+/* Permissions Access Matrix Table */
+.permissions-matrix-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-xs);
+}
+
+.permissions-matrix-table th {
+  background-color: var(--bg-subtle);
+  padding: var(--space-2-5) var(--space-3);
+  font-weight: var(--font-weight-bold);
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  text-align: center;
+  border-bottom: 1px solid var(--border-default);
+}
+
+.permissions-matrix-table td {
+  padding: var(--space-3);
+  border-bottom: 1px solid var(--border-subtle);
+  color: var(--text-primary);
+  text-align: center;
+}
+
+.permissions-matrix-table td:first-child {
+  text-align: left;
+  font-weight: 600;
+}
+
+.canned-responses-table td {
+  vertical-align: top;
+  text-align: left;
+}
+
+.canned-responses-table td:last-child {
+  text-align: right;
+}
+
+.canned-status-pill {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--border-default);
+  background: var(--bg-subtle);
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.canned-status-pill.is-active {
+  background: #ECFDF5;
+  border-color: #A7F3D0;
+  color: #047857;
+}
+
+/* Responsive Grid Rules */
+@media (max-width: 900px) {
+  .settings-form-grid {
+    grid-template-columns: 1fr;
+  }
+}

@@ -390,41 +390,6 @@ export const MyRequestsView: React.FC<MyRequestsViewProps> = ({
         }
       />
 
-      {/* SECTION 1 — SUMMARY (4 Compact KPI Cards) */}
-      <div className="summary-kpi-grid">
-        <div className="summary-kpi-card" onClick={() => setStatusFilter('all')}>
-          <div className="summary-kpi-header">
-            <span className="summary-kpi-title">Total Requests</span>
-            <Ticket size={16} style={{ color: 'var(--text-muted)' }} />
-          </div>
-          <div className="summary-kpi-value">24</div>
-        </div>
-
-        <div className="summary-kpi-card" onClick={() => setStatusFilter('open')}>
-          <div className="summary-kpi-header">
-            <span className="summary-kpi-title">Received</span>
-            <Clock size={16} style={{ color: '#3B82F6' }} />
-          </div>
-          <div className="summary-kpi-value" style={{ color: '#1E40AF' }}>3</div>
-        </div>
-
-        <div className="summary-kpi-card" onClick={() => setStatusFilter('inprogress')}>
-          <div className="summary-kpi-header">
-            <span className="summary-kpi-title">Being worked on</span>
-            <Clock size={16} style={{ color: '#F59E0B' }} />
-          </div>
-          <div className="summary-kpi-value" style={{ color: '#92400E' }}>5</div>
-        </div>
-
-        <div className="summary-kpi-card" onClick={() => setStatusFilter('resolved')}>
-          <div className="summary-kpi-header">
-            <span className="summary-kpi-title">Resolved</span>
-            <CheckCircle2 size={16} style={{ color: '#10B981' }} />
-          </div>
-          <div className="summary-kpi-value" style={{ color: '#065F46' }}>16</div>
-        </div>
-      </div>
-
       {/* SECTION 2 — REQUEST LIST TOOLBAR & TABLE */}
       <div className="table-filter-toolbar">
         <div className="filter-controls-left">

@@ -1736,31 +1736,6 @@ export const CategoriesView: React.FC<CategoriesViewProps> = ({
         }
       />
 
-      <div className="categories-kpi-grid">
-        <div className="categories-kpi-card" onClick={() => setStatusFilter('all')}>
-          <span className="categories-kpi-title">Total Categories</span>
-          <span className="categories-kpi-val">{companyCategories.length}</span>
-        </div>
-        <div className="categories-kpi-card" onClick={() => setStatusFilter('active')}>
-          <span className="categories-kpi-title">Active Categories</span>
-          <span className="categories-kpi-val" style={{ color: '#065F46' }}>
-            {activeCount}
-          </span>
-        </div>
-        <div className="categories-kpi-card" onClick={() => setStatusFilter('inactive')}>
-          <span className="categories-kpi-title">Inactive Categories</span>
-          <span className="categories-kpi-val" style={{ color: '#D97706' }}>
-            {inactiveCount}
-          </span>
-        </div>
-        <div className="categories-kpi-card">
-          <span className="categories-kpi-title">Open Tickets</span>
-          <span className="categories-kpi-val" style={{ color: '#1E40AF' }}>
-            {openTicketsTotal}
-          </span>
-        </div>
-      </div>
-
       <div className="table-filter-toolbar">
         <div className="filter-controls-left">
           <div style={{ width: '310px' }}>

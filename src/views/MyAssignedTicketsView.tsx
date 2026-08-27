@@ -530,63 +530,6 @@ export const MyAssignedTicketsView: React.FC<MyAssignedTicketsViewProps> = ({
         }
       />
 
-      {/* SECTION 1 — MY WORKLOAD (5 Compact KPI Cards) */}
-      <div className="workload-kpi-grid">
-        <div
-          className="workload-kpi-card"
-          onClick={() => {
-            resetQuickFilters();
-          }}
-        >
-          <span className="workload-kpi-title">Assigned to Me</span>
-          <span className="workload-kpi-val">12</span>
-        </div>
-
-        <div
-          className="workload-kpi-card"
-          onClick={() => {
-            resetQuickFilters();
-            setDueTodayOnly(true);
-          }}
-        >
-          <span className="workload-kpi-title">Due Today</span>
-          <span className="workload-kpi-val" style={{ color: '#1E40AF' }}>4</span>
-        </div>
-
-        <div
-          className="workload-kpi-card"
-          onClick={() => {
-            resetQuickFilters();
-            setSlaFilter('attention');
-          }}
-        >
-          <span className="workload-kpi-title">SLA At Risk</span>
-          <span className="workload-kpi-val" style={{ color: '#D97706' }}>2</span>
-        </div>
-
-        <div
-          className="workload-kpi-card"
-          onClick={() => {
-            resetQuickFilters();
-            setHighPriorityOnly(true);
-          }}
-        >
-          <span className="workload-kpi-title">High Priority</span>
-          <span className="workload-kpi-val" style={{ color: '#9333EA' }}>3</span>
-        </div>
-
-        <div
-          className="workload-kpi-card"
-          onClick={() => {
-            resetQuickFilters();
-            setStatusFilter('waitingforemployee');
-          }}
-        >
-          <span className="workload-kpi-title">Need Your Reply</span>
-          <span className="workload-kpi-val" style={{ color: '#4B5563' }}>2</span>
-        </div>
-      </div>
-
       {/* SECTION 2 — SEARCH & FILTERS TOOLBAR */}
       <div className="toolbar-agent-card">
         <div className="agent-toolbar-top">
@@ -692,37 +635,6 @@ export const MyAssignedTicketsView: React.FC<MyAssignedTicketsViewProps> = ({
             </Button>
           </div>
         )}
-      </div>
-
-      {/* SECTION 5 — RECENTLY ASSIGNED COMPACT PANEL */}
-      <div className="recently-assigned-card">
-        <div className="recently-assigned-header">
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <Sparkles size={16} style={{ color: 'var(--color-primary-600)' }} />
-            <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)' }}>Recently Assigned to You</span>
-          </div>
-          <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Auto-refreshed 2 mins ago</span>
-        </div>
-
-        <div className="recent-tickets-list">
-          <div className="recent-ticket-item" onClick={() => onNavigateToTicketDetail('TKT-4091')}>
-            <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--color-primary-600)' }}>TKT-4091</span>
-            <span className="recent-ticket-title">New employee attendance setup</span>
-            <span className="recent-ticket-meta"><Clock size={11} /> Assigned 5 minutes ago</span>
-          </div>
-
-          <div className="recent-ticket-item" onClick={() => onNavigateToTicketDetail('TKT-4090')}>
-            <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--color-primary-600)' }}>TKT-4090</span>
-            <span className="recent-ticket-title">Payroll deduction query for July</span>
-            <span className="recent-ticket-meta"><Clock size={11} /> Assigned 18 minutes ago</span>
-          </div>
-
-          <div className="recent-ticket-item" onClick={() => onNavigateToTicketDetail('TKT-4089')}>
-            <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--color-primary-600)' }}>TKT-4089</span>
-            <span className="recent-ticket-title">Missing attendance punch for Aug 17</span>
-            <span className="recent-ticket-meta"><Clock size={11} /> Assigned 32 minutes ago</span>
-          </div>
-        </div>
       </div>
 
       {/* LEAD BULK OPS BAR */}

@@ -57,8 +57,8 @@ export interface HelpdeskCategory {
   addAssigneesAsFollowers: boolean;
   prioritisationEnabled: boolean;
   /**
-   * When true, this category is exempt from SLA targets / escalation.
-   * Tickets in this category do not use response/resolution clocks or the escalation matrix.
+   * When true, SLA Escalation is off for this category. Priority and reply/resolve
+   * targets still apply; escalation notifications do not fire.
    */
   slaExempt: boolean;
   /** Used when prioritisationEnabled is false — single SLA for all tickets in the category */

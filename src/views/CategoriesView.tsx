@@ -42,7 +42,15 @@ import {
   audienceLabel
 } from '../data/categoryTypes';
 import { getCompanyById, HELPDESK_COMPANIES } from '../data/companies';
-import { DirectoryGroup, DirectoryPerson, employeesForCompany, groupsForCompany } from '../data/directory';
+import {
+  DirectoryGroup,
+  DirectoryGroupKind,
+  DirectoryPerson,
+  employeesForCompany,
+  groupsForCompany,
+  DIRECTORY_GROUP_KIND_LABEL,
+  DIRECTORY_GROUP_KIND_SHORT
+} from '../data/directory';
 import './CategoriesView.css';
 
 const EMPLOYEE_OPTIONS: CategoryAssignee[] = [
@@ -82,7 +90,7 @@ const AUDIENCE_OPTIONS: {
   {
     value: 'groups',
     title: 'Selected groups',
-    description: 'Only people in the groups you choose can raise a request.',
+    description: 'Limit by department, sub-department, business unit, or location.',
     icon: <Users size={18} />
   }
 ];
@@ -103,6 +111,20 @@ const emptyAudience = (): CategoryAudienceConfig => ({
   type: 'all',
   employeeIds: [],
   groupIds: []
+});
+
+const ORG_GROUP_KINDS: DirectoryGroupKind[] = [
+  'department',
+  'sub-department',
+  'business-unit',
+  'location'
+];
+
+const emptyGroupQueries = (): Record<DirectoryGroupKind, string> => ({
+  department: '',
+  'sub-department': '',
+  'business-unit': '',
+  location: ''
 });
 
 export const CategoriesView: React.FC<CategoriesViewProps> = ({
@@ -126,6 +148,10 @@ export const CategoriesView: React.FC<CategoriesViewProps> = ({
   const [formCompanyId, setFormCompanyId] = useState(companyId);
   const [formAudience, setFormAudience] = useState<CategoryAudienceConfig>(emptyAudience());
   const [formAudienceQuery, setFormAudienceQuery] = useState('');
+  const [formGroupQueries, setFormGroupQueries] = useState(emptyGroupQueries);
+  const [formGroupDropdownOpen, setFormGroupDropdownOpen] = useState<
+    Partial<Record<DirectoryGroupKind, boolean>>
+  >({});
   const [formBusinessHours, setFormBusinessHours] = useState('Default 24x7');
   const [formEnableOnHold, setFormEnableOnHold] = useState(false);
   const [formAllowReopen, setFormAllowReopen] = useState(false);
@@ -369,6 +395,8 @@ export const CategoriesView: React.FC<CategoriesViewProps> = ({
     setFormDescription('');
     setFormAudience(emptyAudience());
     setFormAudienceQuery('');
+    setFormGroupQueries(emptyGroupQueries());
+    setFormGroupDropdownOpen({});
     setFormBusinessHours('Default 24x7');
     setFormEnableOnHold(false);
     setFormAllowReopen(false);
@@ -400,6 +428,8 @@ export const CategoriesView: React.FC<CategoriesViewProps> = ({
     setFormDescription(cat.description);
     setFormAudience({ ...cat.audience, employeeIds: [...cat.audience.employeeIds], groupIds: [...cat.audience.groupIds] });
     setFormAudienceQuery('');
+    setFormGroupQueries(emptyGroupQueries());
+    setFormGroupDropdownOpen({});
     setFormBusinessHours(cat.businessHours);
     setFormEnableOnHold(cat.enableOnHold);
     setFormAllowReopen(cat.allowEmployeeReopen);
@@ -427,6 +457,8 @@ export const CategoriesView: React.FC<CategoriesViewProps> = ({
       groupIds: type === 'groups' ? prev.groupIds : []
     }));
     setFormAudienceQuery('');
+    setFormGroupQueries(emptyGroupQueries());
+    setFormGroupDropdownOpen({});
   };
 
   const handleSaveCategoryForm = (e: React.FormEvent) => {
@@ -468,7 +500,6 @@ export const CategoriesView: React.FC<CategoriesViewProps> = ({
       notifications: formSlaExempt
         ? {
             ...formNotifications,
-            notifyAgentOnSlaWarning: false,
             notifyLeadOnBreach: false
           }
         : { ...formNotifications }
@@ -513,13 +544,33 @@ export const CategoriesView: React.FC<CategoriesViewProps> = ({
       !formAudience.employeeIds.includes(e.id)
   );
 
-  const filteredAudienceGroups = companyGroups.filter(
-    g =>
-      (g.name.toLowerCase().includes(formAudienceQuery.toLowerCase()) ||
-        g.description.toLowerCase().includes(formAudienceQuery.toLowerCase())) &&
-      !formAudience.groupIds.includes(g.id)
-  );
+  const filterGroupsByKind = (kind: DirectoryGroupKind) => {
+    const q = formGroupQueries[kind].toLowerCase().trim();
+    return companyGroups.filter(g => {
+      if (g.kind !== kind || formAudience.groupIds.includes(g.id)) return false;
+      if (!q) return true;
+      return (
+        g.name.toLowerCase().includes(q) ||
+        g.description.toLowerCase().includes(q)
+      );
+    });
+  };
 
+  const addGroupToAudience = (groupId: string, kind: DirectoryGroupKind) => {
+    setFormAudience(prev =>
+      prev.groupIds.includes(groupId)
+        ? prev
+        : { ...prev, groupIds: [...prev.groupIds, groupId] }
+    );
+    setFormGroupQueries(prev => ({ ...prev, [kind]: '' }));
+  };
+
+  const removeGroupFromAudience = (groupId: string) => {
+    setFormAudience(prev => ({
+      ...prev,
+      groupIds: prev.groupIds.filter(x => x !== groupId)
+    }));
+  };
   const updatePrioritySla = (priority: TicketPriorityLevel, patch: Partial<PrioritySlaConfig>) => {
     setFormPrioritySla(prev => ({
       ...prev,
@@ -860,63 +911,88 @@ export const CategoriesView: React.FC<CategoriesViewProps> = ({
             <span className="cat-form-label">Select groups</span>
             <span className="cat-audience-count">{formAudience.groupIds.length} selected</span>
           </div>
-          <div className="cat-chip-search">
-            {formAudience.groupIds.map(id => {
-              const group = groupById(id);
-              if (!group) return null;
+          <p className="cat-checkbox-desc" style={{ marginTop: 0 }}>
+            Pick one or more from each type. Multiple selections are allowed.
+          </p>
+          <div className="cat-org-groups-grid">
+            {ORG_GROUP_KINDS.map(kind => {
+              const selectedForKind = formAudience.groupIds
+                .map(id => groupById(id))
+                .filter((g): g is DirectoryGroup => !!g && g.kind === kind);
+              const options = filterGroupsByKind(kind);
+              const isOpen = !!formGroupDropdownOpen[kind];
+              const label = DIRECTORY_GROUP_KIND_LABEL[kind];
+
               return (
-                <span key={id} className="cat-assignee-chip">
-                  <span className="cat-assignee-avatar">G</span>
-                  {group.name}
-                  <button
-                    type="button"
-                    className="cat-assignee-remove"
-                    onClick={() =>
-                      setFormAudience(prev => ({
-                        ...prev,
-                        groupIds: prev.groupIds.filter(x => x !== id)
-                      }))
-                    }
-                    aria-label={`Remove ${group.name}`}
-                  >
-                    <X size={12} />
-                  </button>
-                </span>
+                <div key={kind} className="cat-org-group-field">
+                  <div className="cat-form-label-row">
+                    <span className="cat-form-label">{label}</span>
+                    <span className="cat-audience-count">{selectedForKind.length} selected</span>
+                  </div>
+                  <div className="cat-chip-search">
+                    {selectedForKind.map(group => (
+                      <span key={group.id} className="cat-assignee-chip">
+                        <span className="cat-assignee-avatar">{DIRECTORY_GROUP_KIND_SHORT[group.kind]}</span>
+                        {group.name}
+                        <button
+                          type="button"
+                          className="cat-assignee-remove"
+                          onClick={() => removeGroupFromAudience(group.id)}
+                          aria-label={`Remove ${group.name}`}
+                        >
+                          <X size={12} />
+                        </button>
+                      </span>
+                    ))}
+                    <input
+                      className="cat-chip-search-input"
+                      value={formGroupQueries[kind]}
+                      onChange={e => {
+                        setFormGroupQueries(prev => ({ ...prev, [kind]: e.target.value }));
+                        setFormGroupDropdownOpen(prev => ({ ...prev, [kind]: true }));
+                      }}
+                      onFocus={() => setFormGroupDropdownOpen(prev => ({ ...prev, [kind]: true }))}
+                      onBlur={() => {
+                        window.setTimeout(
+                          () => setFormGroupDropdownOpen(prev => ({ ...prev, [kind]: false })),
+                          150
+                        );
+                      }}
+                      placeholder={`Search ${label.toLowerCase()}…`}
+                      autoComplete="off"
+                    />
+                  </div>
+                  {isOpen && options.length > 0 && (
+                    <div className="cat-search-dropdown">
+                      {options.map(group => (
+                        <button
+                          key={group.id}
+                          type="button"
+                          className="cat-search-option"
+                          onMouseDown={e => e.preventDefault()}
+                          onClick={() => {
+                            addGroupToAudience(group.id, kind);
+                            setFormGroupDropdownOpen(prev => ({ ...prev, [kind]: true }));
+                          }}
+                        >
+                          <span className="cat-assignee-avatar">
+                            {DIRECTORY_GROUP_KIND_SHORT[group.kind]}
+                          </span>
+                          <span>
+                            {group.name}
+                            <span className="cat-search-option-meta">
+                              {group.memberCount} people
+                              {group.description ? ` · ${group.description}` : ''}
+                            </span>
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
               );
             })}
-            <input
-              className="cat-chip-search-input"
-              value={formAudienceQuery}
-              onChange={e => setFormAudienceQuery(e.target.value)}
-              placeholder="Search groups in this company"
-            />
           </div>
-          {formAudienceQuery && filteredAudienceGroups.length > 0 && (
-            <div className="cat-search-dropdown">
-              {filteredAudienceGroups.map(group => (
-                <button
-                  key={group.id}
-                  type="button"
-                  className="cat-search-option"
-                  onClick={() => {
-                    setFormAudience(prev => ({
-                      ...prev,
-                      groupIds: [...prev.groupIds, group.id]
-                    }));
-                    setFormAudienceQuery('');
-                  }}
-                >
-                  <span className="cat-assignee-avatar">G</span>
-                  <span>
-                    {group.name}
-                    <span className="cat-search-option-meta">
-                      {group.memberCount} members · {group.description}
-                    </span>
-                  </span>
-                </button>
-              ))}
-            </div>
-          )}
         </div>
       )}
     </div>
@@ -961,19 +1037,17 @@ export const CategoriesView: React.FC<CategoriesViewProps> = ({
             onChange={v => updateNotification('notifyAgentOnAssign', v)}
             label="When a ticket is assigned"
           />
+          <ToggleSwitch
+            checked={formNotifications.notifyAgentOnSlaWarning}
+            onChange={v => updateNotification('notifyAgentOnSlaWarning', v)}
+            label="When SLA is close to missing"
+          />
           {!formSlaExempt && (
-            <>
-              <ToggleSwitch
-                checked={formNotifications.notifyAgentOnSlaWarning}
-                onChange={v => updateNotification('notifyAgentOnSlaWarning', v)}
-                label="When SLA is close to missing"
-              />
-              <ToggleSwitch
-                checked={formNotifications.notifyLeadOnBreach}
-                onChange={v => updateNotification('notifyLeadOnBreach', v)}
-                label="When SLA is missed"
-              />
-            </>
+            <ToggleSwitch
+              checked={formNotifications.notifyLeadOnBreach}
+              onChange={v => updateNotification('notifyLeadOnBreach', v)}
+              label="When SLA is missed (escalation)"
+            />
           )}
         </div>
       </div>
@@ -1004,6 +1078,8 @@ export const CategoriesView: React.FC<CategoriesViewProps> = ({
                   setFormAudience(emptyAudience());
                   setFormCategoryAssignees([]);
                   setFormAudienceQuery('');
+                  setFormGroupQueries(emptyGroupQueries());
+                  setFormGroupDropdownOpen({});
                   setFormAssigneeQuery('');
                 }}
               >
@@ -1036,11 +1112,7 @@ export const CategoriesView: React.FC<CategoriesViewProps> = ({
 
             <FormField
               label="Working hours"
-              hint={
-                formSlaExempt
-                  ? 'Typical support hours for this category'
-                  : 'When the SLA clock usually runs for this category'
-              }
+              hint="When the SLA clock usually runs for this category"
             >
               <SelectInput value={formBusinessHours} onChange={e => setFormBusinessHours(e.target.value)}>
                 <option value="Default 24x7">Always (24×7)</option>
@@ -1071,7 +1143,7 @@ export const CategoriesView: React.FC<CategoriesViewProps> = ({
               </p>
             </div>
 
-            {!formSlaExempt && formPrioritisationEnabled && (
+            {formPrioritisationEnabled && (
               <div className="cat-form-section">
                 <span className="cat-form-label">Who can change priority?</span>
                 <div className="cat-checkbox-row">
@@ -1137,24 +1209,8 @@ export const CategoriesView: React.FC<CategoriesViewProps> = ({
               </div>
             </div>
 
-            <div className="cat-form-section">
-              <div className="cat-follower-row">
-                <ToggleSwitch
-                  checked={formSlaExempt}
-                  onChange={setFormSlaExempt}
-                  label="Exclude this category from SLA"
-                />
-              </div>
-              <p className="cat-checkbox-desc" style={{ marginTop: '8px' }}>
-                When on, tickets in this category have no response or resolution targets, and are not part of the
-                escalation matrix.
-              </p>
-            </div>
-
             {renderNotificationsSection()}
 
-            {!formSlaExempt && (
-              <>
             <div className="cat-form-section cat-sla-section">
               <div className="cat-follower-row" style={{ marginBottom: '14px' }}>
                 <ToggleSwitch
@@ -1319,22 +1375,31 @@ export const CategoriesView: React.FC<CategoriesViewProps> = ({
             )}
 
             <div className="cat-form-section">
-              <span className="cat-form-label" style={{ marginBottom: '12px', display: 'block' }}>
-                Reminders if targets are missed
-              </span>
-              <div className="cat-escalation-list">
-                <div className="cat-follower-row">
-                  <ToggleSwitch checked={formEscalateResponse} onChange={setFormEscalateResponse} />
-                  <span>Escalate if the first reply is late</span>
-                </div>
-                <div className="cat-follower-row">
-                  <ToggleSwitch checked={formEscalateResolution} onChange={setFormEscalateResolution} />
-                  <span>Escalate if the request is not resolved in time</span>
-                </div>
+              <div className="cat-follower-row" style={{ marginBottom: '8px' }}>
+                <ToggleSwitch
+                  checked={!formSlaExempt}
+                  onChange={enabled => setFormSlaExempt(!enabled)}
+                  label="Enable SLA Escalation"
+                />
               </div>
+              <p className="cat-checkbox-desc" style={{ marginBottom: formSlaExempt ? 0 : '12px' }}>
+                {formSlaExempt
+                  ? 'Escalation is off for this category. Priority and reply/resolve times above still apply.'
+                  : 'Uses the three escalation levels from SLA & Escalation. Choose when to escalate below.'}
+              </p>
+              {!formSlaExempt && (
+                <div className="cat-escalation-list">
+                  <div className="cat-follower-row">
+                    <ToggleSwitch checked={formEscalateResponse} onChange={setFormEscalateResponse} />
+                    <span>Escalate if the first reply is late</span>
+                  </div>
+                  <div className="cat-follower-row">
+                    <ToggleSwitch checked={formEscalateResolution} onChange={setFormEscalateResolution} />
+                    <span>Escalate if the request is not resolved in time</span>
+                  </div>
+                </div>
+              )}
             </div>
-              </>
-            )}
 
             <div className="cat-form-two-col">
               <FormField
@@ -1394,13 +1459,12 @@ export const CategoriesView: React.FC<CategoriesViewProps> = ({
                 <strong>Alerts</strong> — choose what people get notified about.
               </div>
               <div>
-                <strong>SLA exemption</strong> — turn on to skip targets and escalation for this category.
+                <strong>Enable SLA Escalation</strong> — turn on per category; notify targets come from SLA &amp;
+                Escalation. Off keeps reply/resolve times but never escalates.
               </div>
-              {!formSlaExempt && (
-                <div>
-                  <strong>Reply & resolve times</strong> — by priority if enabled, or one shared time if not.
-                </div>
-              )}
+              <div>
+                <strong>Reply & resolve times</strong> — by priority if enabled, or one shared time if not.
+              </div>
             </div>
           </div>
         </div>
@@ -1520,31 +1584,27 @@ export const CategoriesView: React.FC<CategoriesViewProps> = ({
                   <span className="meta-value">{selectedCategory.businessHours}</span>
                 </div>
                 <div className="meta-row-item">
-                  <span className="meta-label">SLA</span>
+                  <span className="meta-label">Escalation</span>
                   <span className="meta-value">
-                    {selectedCategory.slaExempt ? 'Exempt — no SLA targets' : 'Applies'}
+                    {selectedCategory.slaExempt ? 'Off for this category' : 'On'}
                   </span>
                 </div>
-                {!selectedCategory.slaExempt && (
-                  <>
-                    <div className="meta-row-item">
-                      <span className="meta-label">Prioritisation</span>
-                      <span className="meta-value">
-                        {selectedCategory.prioritisationEnabled ? 'Enabled' : 'Disabled (flat SLA)'}
-                      </span>
-                    </div>
-                    <div className="meta-row-item">
-                      <span className="meta-label">
-                        {selectedCategory.prioritisationEnabled ? 'Default Priority' : 'Category SLA'}
-                      </span>
-                      <span className="meta-value">
-                        {selectedCategory.prioritisationEnabled
-                          ? selectedCategory.defaultPriority
-                          : `${selectedCategory.categorySla?.firstResponseValue ?? 8}${String(selectedCategory.categorySla?.firstResponseUnit ?? 'Hours').charAt(0).toLowerCase()} / ${selectedCategory.categorySla?.resolutionValue ?? 2}${String(selectedCategory.categorySla?.resolutionUnit ?? 'Days').charAt(0).toLowerCase()}`}
-                      </span>
-                    </div>
-                  </>
-                )}
+                <div className="meta-row-item">
+                  <span className="meta-label">Prioritisation</span>
+                  <span className="meta-value">
+                    {selectedCategory.prioritisationEnabled ? 'Enabled' : 'Disabled (flat SLA)'}
+                  </span>
+                </div>
+                <div className="meta-row-item">
+                  <span className="meta-label">
+                    {selectedCategory.prioritisationEnabled ? 'Default Priority' : 'Category SLA'}
+                  </span>
+                  <span className="meta-value">
+                    {selectedCategory.prioritisationEnabled
+                      ? selectedCategory.defaultPriority
+                      : `${selectedCategory.categorySla?.firstResponseValue ?? 8}${String(selectedCategory.categorySla?.firstResponseUnit ?? 'Hours').charAt(0).toLowerCase()} / ${selectedCategory.categorySla?.resolutionValue ?? 2}${String(selectedCategory.categorySla?.resolutionUnit ?? 'Days').charAt(0).toLowerCase()}`}
+                  </span>
+                </div>
                 <div className="meta-row-item">
                   <span className="meta-label">Employee Reopen</span>
                   <span className="meta-value">
@@ -1581,7 +1641,9 @@ export const CategoriesView: React.FC<CategoriesViewProps> = ({
                 <div className="pipeline-step-box">
                   <span className="pipeline-step-title">SLA Rule</span>
                   <span className="pipeline-step-val">
-                    {selectedCategory.slaExempt ? 'Exempt' : '4h Resolution Target'}
+                    {selectedCategory.slaExempt
+                      ? 'Targets apply · escalation off'
+                      : '4h Resolution Target'}
                   </span>
                 </div>
                 <ArrowRight size={16} className="pipeline-arrow" />
@@ -1614,21 +1676,20 @@ export const CategoriesView: React.FC<CategoriesViewProps> = ({
                 <div className="cat-notif-group">
                   <span className="cat-notif-group-title">Agent & lead</span>
                   <div className="cat-notif-readonly">Assignment — {notif.notifyAgentOnAssign ? 'On' : 'Off'}</div>
+                  <div className="cat-notif-readonly">
+                    SLA warning — {notif.notifyAgentOnSlaWarning ? 'On' : 'Off'}
+                  </div>
                   {!selectedCategory.slaExempt && (
-                    <>
-                      <div className="cat-notif-readonly">
-                        SLA warning — {notif.notifyAgentOnSlaWarning ? 'On' : 'Off'}
-                      </div>
-                      <div className="cat-notif-readonly">
-                        SLA breach — {notif.notifyLeadOnBreach ? 'On' : 'Off'}
-                      </div>
-                    </>
+                    <div className="cat-notif-readonly">
+                      SLA breach — {notif.notifyLeadOnBreach ? 'On' : 'Off'}
+                    </div>
                   )}
                 </div>
               </div>
               {selectedCategory.slaExempt && (
                 <p className="text-caption" style={{ marginTop: 12, color: 'var(--text-secondary)' }}>
-                  This category is SLA-exempt — SLA warning and breach alerts do not apply.
+                  SLA Escalation is off for this category — breach escalation alerts do not apply. SLA warning alerts
+                  still can.
                 </p>
               )}
               <div style={{ marginTop: 16 }}>

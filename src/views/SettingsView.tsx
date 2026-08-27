@@ -419,7 +419,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 >
                   <option value="Round Robin (Load Balanced)">Evenly (round robin)</option>
                   <option value="Lowest Active Workload">Least busy agent</option>
-                  <option value="Category Specialist Preferred">Category specialist first</option>
+                  <option value="Team Lead Preferred">Team lead</option>
                 </SelectInput>
               </FormField>
             ) : (

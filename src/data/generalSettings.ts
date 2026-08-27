@@ -29,7 +29,7 @@ const DEFAULTS: CompanyGeneralSettings = {
 const SEED: Record<string, Partial<CompanyGeneralSettings>> = {
   'co-acme': { ticketPrefix: 'TKT-', assignmentAlgorithm: 'Round Robin (Load Balanced)' },
   'co-northwind': { ticketPrefix: 'NW-', assignmentAlgorithm: 'Lowest Active Workload' },
-  'co-contoso': { ticketPrefix: 'CT-', assignmentAlgorithm: 'Category Specialist Preferred' }
+  'co-contoso': { ticketPrefix: 'CT-', assignmentAlgorithm: 'Team Lead Preferred' }
 };
 
 function readAll(): Record<string, CompanyGeneralSettings> {
@@ -51,11 +51,15 @@ export function getGeneralSettings(companyId: string = DEFAULT_COMPANY_ID): Comp
   const all = readAll();
   const stored = all[companyId];
   const seed = SEED[companyId] || {};
-  return {
+  const merged = {
     ...DEFAULTS,
     ...seed,
     ...(stored || {})
   };
+  if (merged.assignmentAlgorithm === 'Category Specialist Preferred') {
+    merged.assignmentAlgorithm = 'Team Lead Preferred';
+  }
+  return merged;
 }
 
 export function saveGeneralSettings(companyId: string, settings: CompanyGeneralSettings): void {

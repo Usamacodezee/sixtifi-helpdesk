@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { PageHeader } from '../components/ui/PageHeader';
-import { Button, IconButton } from '../components/ui/Button';
+import { Button } from '../components/ui/Button';
 import { PriorityBadge, TicketPriority } from '../components/ui/Badge';
 import { SelectInput, FormField, TextInput } from '../components/ui/FormControls';
 import { Table, Column } from '../components/ui/Table';
@@ -11,8 +11,6 @@ import {
   Bell,
   Sliders,
   Edit,
-  Plus,
-  Trash2,
   History,
   User,
   Info
@@ -51,11 +49,15 @@ export interface SlaPolicyRule {
   status: 'Active' | 'Inactive';
 }
 
+export type EscalationNotifyKind = 'assignee' | 'team-lead' | 'employee';
+
 export interface EscalationLevel {
   id: string;
-  level: number;
+  level: 1 | 2 | 3;
   trigger: '80% SLA At Risk' | '100% SLA Reached' | 'SLA Breached';
-  /** Person in this company who receives the escalation */
+  /** Who receives this escalation */
+  notifyKind: EscalationNotifyKind;
+  /** Set when notifyKind === 'employee' */
   notifyPersonId: string;
   notifyPersonName: string;
   channel: 'In-app' | 'Email' | 'In-app + Email';
@@ -77,46 +79,46 @@ export interface SlaConfigChange {
   changedAt: string;
 }
 
+const FIXED_TRIGGERS: Record<1 | 2 | 3, EscalationLevel['trigger']> = {
+  1: '80% SLA At Risk',
+  2: '100% SLA Reached',
+  3: 'SLA Breached'
+};
+
+function notifyDisplayLabel(esc: EscalationLevel): string {
+  if (esc.notifyKind === 'assignee') return 'Assignee';
+  if (esc.notifyKind === 'team-lead') return 'Team Lead';
+  return esc.notifyPersonName || 'Employee';
+}
+
 function defaultEscalationLevels(people: DirectoryPerson[]): EscalationLevel[] {
-  const pick = (i: number) => people[Math.min(i, Math.max(0, people.length - 1))];
-  if (people.length === 0) {
-    return [
-      {
-        id: 'esc-1',
-        level: 1,
-        trigger: '80% SLA At Risk',
-        notifyPersonId: '',
-        notifyPersonName: 'Unassigned',
-        channel: 'In-app + Email'
-      }
-    ];
-  }
-  const a = pick(0);
-  const b = pick(1);
-  const c = pick(2);
+  const first = people[0];
   return [
     {
       id: 'esc-1',
       level: 1,
-      trigger: '80% SLA At Risk',
-      notifyPersonId: a.id,
-      notifyPersonName: a.name,
+      trigger: FIXED_TRIGGERS[1],
+      notifyKind: 'assignee',
+      notifyPersonId: '',
+      notifyPersonName: '',
       channel: 'In-app + Email'
     },
     {
       id: 'esc-2',
       level: 2,
-      trigger: '100% SLA Reached',
-      notifyPersonId: b.id,
-      notifyPersonName: b.name,
+      trigger: FIXED_TRIGGERS[2],
+      notifyKind: 'team-lead',
+      notifyPersonId: '',
+      notifyPersonName: '',
       channel: 'In-app + Email'
     },
     {
       id: 'esc-3',
       level: 3,
-      trigger: 'SLA Breached',
-      notifyPersonId: c.id,
-      notifyPersonName: c.name,
+      trigger: FIXED_TRIGGERS[3],
+      notifyKind: first ? 'employee' : 'assignee',
+      notifyPersonId: first?.id || '',
+      notifyPersonName: first?.name || '',
       channel: 'In-app + Email'
     }
   ];
@@ -153,8 +155,7 @@ export const SlaEscalationView: React.FC<SlaEscalationViewProps> = ({
     { id: 'sla-low', priority: 'Low', responseTarget: '1 Working Day', resolutionTarget: '3 Working Days', warningThreshold: '80%', status: 'Active' }
   ]);
 
-  // Escalation Levels State
-  const [isEscalationEnabled, setIsEscalationEnabled] = useState(true);
+  // Fixed escalation levels (cannot add/remove) — enable/disable is per category
   const [escalationLevels, setEscalationLevels] = useState<EscalationLevel[]>(() =>
     defaultEscalationLevels(employeesForCompany(companyId))
   );
@@ -165,11 +166,6 @@ export const SlaEscalationView: React.FC<SlaEscalationViewProps> = ({
 
   // Default SLA warning threshold
   const [warningThreshold, setWarningThreshold] = useState('80%');
-
-  // SLA Exceptions State
-  const [slaExceptions] = useState<SlaException[]>([
-    { id: 'exc-1', priority: 'Urgent', category: 'Payroll', customResolutionTarget: '4 Working Hours', status: 'Active' }
-  ]);
 
   // Admin config change history (who changed SLA targets, when)
   const [configChangeLog, setConfigChangeLog] = useState<SlaConfigChange[]>([
@@ -182,8 +178,8 @@ export const SlaEscalationView: React.FC<SlaEscalationViewProps> = ({
     },
     {
       id: 'cfg-2',
-      summary: 'Enabled Level 3 escalation',
-      detail: 'Trigger: SLA Breached · Notify: person in company · Channel: In-app + Email',
+      summary: 'Updated Level 3 escalation notify target',
+      detail: 'Trigger: SLA Breached · Notify: Employee',
       changedBy: 'Rahul Sharma (Team Lead)',
       changedAt: '18 Aug 2026, 11:05 AM'
     },
@@ -215,14 +211,10 @@ export const SlaEscalationView: React.FC<SlaEscalationViewProps> = ({
   const [editResolutionTarget, setEditResolutionTarget] = useState('');
   const [editWarningThreshold, setEditWarningThreshold] = useState('80%');
 
-  const [isAddEscalationModalOpen, setIsAddEscalationModalOpen] = useState(false);
-  const [newEscTrigger, setNewEscTrigger] = useState<'80% SLA At Risk' | '100% SLA Reached' | 'SLA Breached'>('80% SLA At Risk');
-  const [newEscPersonId, setNewEscPersonId] = useState('');
-  const [newEscChannel, setNewEscChannel] = useState<'In-app' | 'Email' | 'In-app + Email'>('In-app + Email');
-
-  useEffect(() => {
-    setNewEscPersonId(companyPeople[0]?.id || '');
-  }, [companyPeople]);
+  const [editingEscalation, setEditingEscalation] = useState<EscalationLevel | null>(null);
+  const [editEscNotifyKind, setEditEscNotifyKind] = useState<EscalationNotifyKind>('assignee');
+  const [editEscPersonId, setEditEscPersonId] = useState('');
+  const [editEscChannel, setEditEscChannel] = useState<'In-app' | 'Email' | 'In-app + Email'>('In-app + Email');
 
   // Open Edit SLA Rule Modal
   const handleOpenEditModal = (rule: SlaPolicyRule) => {
@@ -258,35 +250,55 @@ export const SlaEscalationView: React.FC<SlaEscalationViewProps> = ({
     onShowToast('success', 'SLA Target Updated', `SLA targets updated for ${editingRule.priority} priority.`);
   };
 
-  // Add Escalation Level
-  const handleAddEscalationLevel = () => {
-    if (escalationLevels.length >= 3) {
-      onShowToast('warning', 'Limit Reached', 'Maximum 3 escalation levels permitted.');
-      return;
+  const handleOpenEditEscalation = (esc: EscalationLevel) => {
+    setEditingEscalation(esc);
+    setEditEscNotifyKind(esc.notifyKind);
+    setEditEscPersonId(esc.notifyPersonId || companyPeople[0]?.id || '');
+    setEditEscChannel(esc.channel);
+  };
+
+  const handleSaveEscalation = () => {
+    if (!editingEscalation) return;
+
+    let notifyPersonId = '';
+    let notifyPersonName = '';
+    if (editEscNotifyKind === 'employee') {
+      const person = companyPeople.find(p => p.id === editEscPersonId) || companyPeople[0];
+      if (!person) {
+        onShowToast('warning', 'Pick a person', 'Choose an employee from this company.');
+        return;
+      }
+      notifyPersonId = person.id;
+      notifyPersonName = person.name;
     }
 
-    const person = companyPeople.find(p => p.id === newEscPersonId) || companyPeople[0];
-    if (!person) {
-      onShowToast('warning', 'No people', 'Add people to this company before setting escalation.');
-      return;
-    }
-
-    const newLevel: EscalationLevel = {
-      id: `esc-${Date.now()}`,
-      level: escalationLevels.length + 1,
-      trigger: newEscTrigger,
-      notifyPersonId: person.id,
-      notifyPersonName: person.name,
-      channel: newEscChannel
-    };
-
-    setEscalationLevels(prev => [...prev, newLevel]);
-    setIsAddEscalationModalOpen(false);
-    appendConfigChange(
-      `Added escalation Level ${newLevel.level}`,
-      `Trigger: ${newLevel.trigger} · Notify: ${newLevel.notifyPersonName} · Channel: ${newLevel.channel}`
+    setEscalationLevels(prev =>
+      prev.map(e =>
+        e.id === editingEscalation.id
+          ? {
+              ...e,
+              notifyKind: editEscNotifyKind,
+              notifyPersonId,
+              notifyPersonName,
+              channel: editEscChannel
+            }
+          : e
+      )
     );
-    onShowToast('success', 'Escalation Level Added', `Added Level ${newLevel.level} — notifies ${person.name}.`);
+
+    const label =
+      editEscNotifyKind === 'assignee'
+        ? 'Assignee'
+        : editEscNotifyKind === 'team-lead'
+          ? 'Team Lead'
+          : notifyPersonName;
+
+    appendConfigChange(
+      `Updated Level ${editingEscalation.level} notify target`,
+      `Trigger: ${editingEscalation.trigger} · Notify: ${label} · Channel: ${editEscChannel}`
+    );
+    setEditingEscalation(null);
+    onShowToast('success', 'Escalation Updated', `Level ${editingEscalation.level} now notifies ${label}.`);
   };
 
   // Columns for Default SLA Policy Table
@@ -552,7 +564,7 @@ export const SlaEscalationView: React.FC<SlaEscalationViewProps> = ({
         </div>
       </div>
 
-      {/* SECTION 5 — ESCALATION */}
+      {/* SECTION 5 — ESCALATION (3 fixed levels) */}
       <div className="sla-config-card">
         <div className="sla-card-header">
           <div>
@@ -561,30 +573,9 @@ export const SlaEscalationView: React.FC<SlaEscalationViewProps> = ({
               Escalation Notifications
             </div>
             <div className="sla-card-subtitle">
-              Notify a person from {company.shortName} when tickets need attention or miss SLA.
+              Three fixed levels for {company.shortName}. Who to notify is set here; turn escalation on or off per
+              category.
             </div>
-          </div>
-
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <label style={{ fontSize: '13px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>
-              <input
-                type="checkbox"
-                checked={isEscalationEnabled}
-                onChange={e => setIsEscalationEnabled(e.target.checked)}
-              />
-              Enable SLA Escalation
-            </label>
-
-            {escalationLevels.length < 3 && (
-              <Button
-                variant="secondary"
-                size="sm"
-                leftIcon={<Plus size={14} />}
-                onClick={() => setIsAddEscalationModalOpen(true)}
-              >
-                + Add Escalation Level
-              </Button>
-            )}
           </div>
         </div>
 
@@ -599,7 +590,7 @@ export const SlaEscalationView: React.FC<SlaEscalationViewProps> = ({
               <div style={{ display: 'flex', alignItems: 'center', gap: '16px', fontSize: '12px' }}>
                 <div>
                   <span style={{ color: 'var(--text-muted)' }}>Notify: </span>
-                  <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{esc.notifyPersonName}</span>
+                  <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{notifyDisplayLabel(esc)}</span>
                 </div>
 
                 <div>
@@ -608,47 +599,16 @@ export const SlaEscalationView: React.FC<SlaEscalationViewProps> = ({
                 </div>
               </div>
 
-              <IconButton
-                icon={<Trash2 size={14} />}
-                ariaLabel="Remove"
+              <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => {
-                  appendConfigChange(
-                    `Removed escalation Level ${esc.level}`,
-                    `Trigger: ${esc.trigger} · Notify: ${esc.notifyPersonName}`
-                  );
-                  setEscalationLevels(escalationLevels.filter(e => e.id !== esc.id));
-                }}
-              />
+                leftIcon={<Edit size={13} />}
+                onClick={() => handleOpenEditEscalation(esc)}
+              >
+                Edit
+              </Button>
             </div>
           ))}
-        </div>
-      </div>
-
-      {/* SECTION 6 — SLA EXCEPTIONS OVERRIDES */}
-      <div className="sla-config-card">
-        <div className="sla-card-header">
-          <div>
-            <div className="sla-card-title" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <Sliders size={18} style={{ color: 'var(--color-primary-600)' }} />
-              SLA Custom Exceptions
-            </div>
-            <div className="sla-card-subtitle">Category or priority-specific custom SLA overrides.</div>
-          </div>
-        </div>
-
-        <div style={{ padding: '12px', backgroundColor: 'var(--bg-subtle)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-default)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <PriorityBadge priority={slaExceptions[0].priority} />
-            <span style={{ fontSize: '13px', fontWeight: 600 }}>Category: {slaExceptions[0].category}</span>
-            <span style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>Custom Resolution: <strong>{slaExceptions[0].customResolutionTarget}</strong></span>
-          </div>
-
-          <span className="badge" style={{ backgroundColor: '#ECFDF5', color: '#047857', borderColor: '#A7F3D0' }}>
-            <span className="badge-dot" style={{ backgroundColor: '#10B981' }} />
-            <span>Active</span>
-          </span>
         </div>
       </div>
 
@@ -726,44 +686,57 @@ export const SlaEscalationView: React.FC<SlaEscalationViewProps> = ({
         </div>
       </Modal>
 
-      {/* ADD ESCALATION LEVEL MODAL */}
+      {/* EDIT ESCALATION NOTIFY TARGET */}
       <Modal
-        isOpen={isAddEscalationModalOpen}
-        onClose={() => setIsAddEscalationModalOpen(false)}
-        title="Add escalation level"
-        subtitle={`Choose when to escalate and who in ${company.name} to notify.`}
+        isOpen={!!editingEscalation}
+        onClose={() => setEditingEscalation(null)}
+        title={`Edit Level ${editingEscalation?.level ?? ''} notify target`}
+        subtitle={
+          editingEscalation
+            ? `Trigger is fixed: ${editingEscalation.trigger}. Choose who to notify.`
+            : ''
+        }
         footer={
           <>
-            <Button variant="secondary" onClick={() => setIsAddEscalationModalOpen(false)}>Cancel</Button>
-            <Button variant="primary" onClick={handleAddEscalationLevel}>Add Level</Button>
+            <Button variant="secondary" onClick={() => setEditingEscalation(null)}>Cancel</Button>
+            <Button variant="primary" onClick={handleSaveEscalation}>Save</Button>
           </>
         }
       >
         <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
-          <FormField label="When to notify">
-            <SelectInput value={newEscTrigger} onChange={e => setNewEscTrigger(e.target.value as any)}>
-              <option value="80% SLA At Risk">80% SLA At Risk</option>
-              <option value="100% SLA Reached">100% SLA Reached</option>
-              <option value="SLA Breached">SLA Breached</option>
+          <FormField label="When (fixed)">
+            <TextInput value={editingEscalation?.trigger || ''} readOnly />
+          </FormField>
+
+          <FormField label="Notify" hint="Assignee, team lead, or a specific person in this company">
+            <SelectInput
+              value={editEscNotifyKind}
+              onChange={e => setEditEscNotifyKind(e.target.value as EscalationNotifyKind)}
+            >
+              <option value="assignee">Assignee (ticket owner)</option>
+              <option value="team-lead">Team Lead</option>
+              <option value="employee">Other employee</option>
             </SelectInput>
           </FormField>
 
-          <FormField label="Notify person" hint={`People in ${company.name}`}>
-            <SelectInput value={newEscPersonId} onChange={e => setNewEscPersonId(e.target.value)}>
-              {companyPeople.length === 0 ? (
-                <option value="">No people in this company</option>
-              ) : (
-                companyPeople.map(p => (
-                  <option key={p.id} value={p.id}>
-                    {p.name} ({p.department})
-                  </option>
-                ))
-              )}
-            </SelectInput>
-          </FormField>
+          {editEscNotifyKind === 'employee' && (
+            <FormField label="Employee" hint={`People in ${company.name}`}>
+              <SelectInput value={editEscPersonId} onChange={e => setEditEscPersonId(e.target.value)}>
+                {companyPeople.length === 0 ? (
+                  <option value="">No people in this company</option>
+                ) : (
+                  companyPeople.map(p => (
+                    <option key={p.id} value={p.id}>
+                      {p.name} ({p.department})
+                    </option>
+                  ))
+                )}
+              </SelectInput>
+            </FormField>
+          )}
 
-          <FormField label="Notification Channel">
-            <SelectInput value={newEscChannel} onChange={e => setNewEscChannel(e.target.value as any)}>
+          <FormField label="Channel">
+            <SelectInput value={editEscChannel} onChange={e => setEditEscChannel(e.target.value as any)}>
               <option value="In-app + Email">In-app + Email</option>
               <option value="In-app">In-app Only</option>
               <option value="Email">Email Only</option>

@@ -3,7 +3,6 @@ import { PageHeader } from '../components/ui/PageHeader';
 import { Button } from '../components/ui/Button';
 import { PriorityBadge, TicketPriority } from '../components/ui/Badge';
 import { SelectInput, FormField, TextInput } from '../components/ui/FormControls';
-import { Table, Column } from '../components/ui/Table';
 import { Modal } from '../components/ui/Modal';
 import {
   Save,
@@ -40,12 +39,20 @@ const formatConfigTimestamp = () => {
   });
 };
 
+export type SlaTimeUnit = 'Minutes' | 'Hours' | 'Days';
+
 export interface SlaPolicyRule {
   id: string;
   priority: TicketPriority;
-  responseTarget: string;
-  resolutionTarget: string;
-  warningThreshold: string;
+  firstReplyValue: number;
+  firstReplyUnit: SlaTimeUnit;
+  resolveValue: number;
+  resolveUnit: SlaTimeUnit;
+}
+
+function formatSlaTarget(value: number, unit: SlaTimeUnit): string {
+  const label = value === 1 ? unit.replace(/s$/, '') : unit;
+  return `${value} ${label}`;
 }
 
 export type EscalationNotifyKind = 'assignee' | 'team-lead' | 'employee';
@@ -188,12 +195,12 @@ export const SlaEscalationView: React.FC<SlaEscalationViewProps> = ({
     return () => window.removeEventListener(SLA_HOURS_UPDATED_EVENT, refresh);
   }, [companyId]);
 
-  // Default SLA Policies
+  // Default SLA Policies — warning thresholds are global (SLA Defaults), not per priority
   const [slaRules, setSlaRules] = useState<SlaPolicyRule[]>([
-    { id: 'sla-urgent', priority: 'Urgent', responseTarget: '1 Working Hour', resolutionTarget: '4 Working Hours', warningThreshold: '80%' },
-    { id: 'sla-high', priority: 'High', responseTarget: '4 Working Hours', resolutionTarget: '1 Working Day', warningThreshold: '80%' },
-    { id: 'sla-medium', priority: 'Medium', responseTarget: '8 Working Hours', resolutionTarget: '2 Working Days', warningThreshold: '80%' },
-    { id: 'sla-low', priority: 'Low', responseTarget: '1 Working Day', resolutionTarget: '3 Working Days', warningThreshold: '80%' }
+    { id: 'sla-urgent', priority: 'Urgent', firstReplyValue: 1, firstReplyUnit: 'Hours', resolveValue: 4, resolveUnit: 'Hours' },
+    { id: 'sla-high', priority: 'High', firstReplyValue: 4, firstReplyUnit: 'Hours', resolveValue: 1, resolveUnit: 'Days' },
+    { id: 'sla-medium', priority: 'Medium', firstReplyValue: 8, firstReplyUnit: 'Hours', resolveValue: 2, resolveUnit: 'Days' },
+    { id: 'sla-low', priority: 'Low', firstReplyValue: 12, firstReplyUnit: 'Hours', resolveValue: 4, resolveUnit: 'Days' }
   ]);
 
   const [warningThreshold, setWarningThreshold] = useState('80%');
@@ -235,13 +242,11 @@ export const SlaEscalationView: React.FC<SlaEscalationViewProps> = ({
     const nextCritical = pickValidCriticalThreshold(next, criticalThreshold);
     setWarningThreshold(next);
     setCriticalThreshold(nextCritical);
-    setSlaRules(prev =>
-      prev.map(rule => ({
-        ...rule,
-        warningThreshold: next
-      }))
-    );
     applyThresholdSync(next, nextCritical);
+  };
+
+  const updateSlaRule = (id: string, patch: Partial<SlaPolicyRule>) => {
+    setSlaRules(prev => prev.map(rule => (rule.id === id ? { ...rule, ...patch } : rule)));
   };
 
   const handleCriticalThresholdChange = (next: string) => {
@@ -262,7 +267,7 @@ export const SlaEscalationView: React.FC<SlaEscalationViewProps> = ({
     {
       id: 'cfg-1',
       summary: 'Updated High priority SLA targets',
-      detail: 'Response: 4 Working Hours · Resolution: 1 Working Day · Warning: 80%',
+      detail: 'First reply: 4 Hours · Resolve: 1 Day',
       changedBy: 'Priya Shah (Helpdesk Admin)',
       changedAt: '22 Aug 2026, 2:14 PM'
     },
@@ -295,45 +300,38 @@ export const SlaEscalationView: React.FC<SlaEscalationViewProps> = ({
     ]);
   };
 
-  // Modal States
   const [editingRule, setEditingRule] = useState<SlaPolicyRule | null>(null);
-  const [editResponseTarget, setEditResponseTarget] = useState('');
-  const [editResolutionTarget, setEditResolutionTarget] = useState('');
-  const [editWarningThreshold, setEditWarningThreshold] = useState('80%');
+  const [editFirstReplyValue, setEditFirstReplyValue] = useState(1);
+  const [editFirstReplyUnit, setEditFirstReplyUnit] = useState<SlaTimeUnit>('Hours');
+  const [editResolveValue, setEditResolveValue] = useState(1);
+  const [editResolveUnit, setEditResolveUnit] = useState<SlaTimeUnit>('Days');
 
   const [editingEscalation, setEditingEscalation] = useState<EscalationLevel | null>(null);
   const [editEscNotifyKind, setEditEscNotifyKind] = useState<EscalationNotifyKind>('assignee');
   const [editEscPersonId, setEditEscPersonId] = useState('');
   const [editEscChannel, setEditEscChannel] = useState<'In-app' | 'Email' | 'In-app + Email'>('In-app + Email');
 
-  // Open Edit SLA Rule Modal
-  const handleOpenEditModal = (rule: SlaPolicyRule) => {
+  const handleOpenEditRule = (rule: SlaPolicyRule) => {
     setEditingRule(rule);
-    setEditResponseTarget(rule.responseTarget);
-    setEditResolutionTarget(rule.resolutionTarget);
-    setEditWarningThreshold(rule.warningThreshold);
+    setEditFirstReplyValue(rule.firstReplyValue);
+    setEditFirstReplyUnit(rule.firstReplyUnit);
+    setEditResolveValue(rule.resolveValue);
+    setEditResolveUnit(rule.resolveUnit);
   };
 
-  // Save SLA Rule Changes
   const handleSaveRule = () => {
     if (!editingRule) return;
 
-    setSlaRules(prev =>
-      prev.map(r =>
-        r.id === editingRule.id
-          ? {
-              ...r,
-              responseTarget: editResponseTarget,
-              resolutionTarget: editResolutionTarget,
-              warningThreshold: editWarningThreshold
-            }
-          : r
-      )
-    );
+    updateSlaRule(editingRule.id, {
+      firstReplyValue: editFirstReplyValue,
+      firstReplyUnit: editFirstReplyUnit,
+      resolveValue: editResolveValue,
+      resolveUnit: editResolveUnit
+    });
 
     appendConfigChange(
       `Updated ${editingRule.priority} priority SLA targets`,
-      `Response: ${editResponseTarget} · Resolution: ${editResolutionTarget} · Warning: ${editWarningThreshold}`
+      `First reply: ${formatSlaTarget(editFirstReplyValue, editFirstReplyUnit)} · Resolve: ${formatSlaTarget(editResolveValue, editResolveUnit)}`
     );
 
     setEditingRule(null);
@@ -391,55 +389,6 @@ export const SlaEscalationView: React.FC<SlaEscalationViewProps> = ({
     onShowToast('success', 'Escalation Updated', `Level ${editingEscalation.level} now notifies ${label}.`);
   };
 
-  // Columns for Default SLA Policy Table
-  const slaColumns: Column<SlaPolicyRule>[] = [
-    {
-      key: 'priority',
-      header: 'Priority',
-      sortable: true,
-      render: item => <PriorityBadge priority={item.priority} />
-    },
-    {
-      key: 'responseTarget',
-      header: 'Response Target',
-      sortable: true,
-      render: item => <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)' }}>{item.responseTarget}</span>
-    },
-    {
-      key: 'resolutionTarget',
-      header: 'Resolution Target',
-      sortable: true,
-      render: item => <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)' }}>{item.resolutionTarget}</span>
-    },
-    {
-      key: 'warningThreshold',
-      header: 'Warning At',
-      sortable: true,
-      render: item => (
-        <span style={{ fontSize: '12px', fontWeight: 700, color: '#D97706', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-          <Clock size={12} />
-          {item.warningThreshold}
-        </span>
-      )
-    },
-    {
-      key: 'actions',
-      header: '',
-      width: '80px',
-      align: 'right',
-      render: item => (
-        <Button
-          variant="ghost"
-          size="sm"
-          leftIcon={<Edit size={13} />}
-          onClick={() => handleOpenEditModal(item)}
-        >
-          Edit
-        </Button>
-      )
-    }
-  ];
-
   return (
     <div className="sla-container">
       {/* PAGE HEADER */}
@@ -472,7 +421,12 @@ export const SlaEscalationView: React.FC<SlaEscalationViewProps> = ({
               onClick={() => {
                 appendConfigChange(
                   'Published SLA configuration changes',
-                  `Company: ${company.name} · Hours mode: ${getSlaHoursModeLabel(slaHoursMode)} · At risk: ${warningThreshold} · Critical: ${criticalThreshold} · Active policies: ${slaRules.length}`
+                  `Company: ${company.name} · Hours mode: ${getSlaHoursModeLabel(slaHoursMode)} · At risk: ${warningThreshold} · Critical: ${criticalThreshold} · Targets: ${slaRules
+                    .map(
+                      r =>
+                        `${r.priority} ${formatSlaTarget(r.firstReplyValue, r.firstReplyUnit)} / ${formatSlaTarget(r.resolveValue, r.resolveUnit)}`
+                    )
+                    .join('; ')}`
                 );
                 onShowToast('success', 'Changes Saved', `SLA configuration saved for ${company.name}.`);
               }}
@@ -620,20 +574,55 @@ export const SlaEscalationView: React.FC<SlaEscalationViewProps> = ({
         </div>
       </div>
 
-      {/* SECTION 3 — DEFAULT SLA POLICY TABLE */}
+      {/* SECTION 3 — DEFAULT SLA POLICY BY PRIORITY */}
       <div className="sla-config-card">
         <div className="sla-card-header">
           <div>
-            <div className="sla-card-title">Reply & resolve times by priority</div>
-            <div className="sla-card-subtitle">Default targets for Urgent, High, Medium, and Low.</div>
+            <div className="sla-card-title" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <Clock size={18} style={{ color: 'var(--color-primary-600)' }} />
+              Reply & resolve times by priority
+            </div>
+            <div className="sla-card-subtitle">
+              Default first-reply and resolution targets for Urgent, High, Medium, and Low. At-risk and critical
+              thresholds are managed globally above.
+            </div>
           </div>
         </div>
 
-        <Table
-          columns={slaColumns}
-          data={slaRules}
-          keyExtractor={r => r.id}
-        />
+        <div className="sla-priority-list">
+          {slaRules.map(rule => (
+            <div key={rule.id} className="sla-priority-list-item">
+              <div className="sla-priority-col-priority">
+                <PriorityBadge priority={rule.priority} />
+              </div>
+
+              <div className="sla-priority-col-metric">
+                <span className="sla-priority-list-meta">First reply</span>
+                <span className="sla-priority-list-value">
+                  {formatSlaTarget(rule.firstReplyValue, rule.firstReplyUnit)}
+                </span>
+              </div>
+
+              <div className="sla-priority-col-metric">
+                <span className="sla-priority-list-meta">Resolve</span>
+                <span className="sla-priority-list-value">
+                  {formatSlaTarget(rule.resolveValue, rule.resolveUnit)}
+                </span>
+              </div>
+
+              <div className="sla-priority-col-action">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  leftIcon={<Edit size={13} />}
+                  onClick={() => handleOpenEditRule(rule)}
+                >
+                  Edit
+                </Button>
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
 
       {/* SECTION 4 — SLA WARNING */}
@@ -758,12 +747,12 @@ export const SlaEscalationView: React.FC<SlaEscalationViewProps> = ({
         </div>
       </div>
 
-      {/* EDIT SLA RULE MODAL */}
+      {/* EDIT SINGLE PRIORITY SLA TARGET */}
       <Modal
         isOpen={!!editingRule}
         onClose={() => setEditingRule(null)}
-        title={`Edit SLA Target — ${editingRule?.priority} Priority`}
-        subtitle="Configure response and resolution targets for this priority tier."
+        title={`Edit ${editingRule?.priority ?? ''} priority targets`}
+        subtitle="Update first-reply and resolution times for this priority. Warning thresholds stay global."
         footer={
           <>
             <Button variant="secondary" onClick={() => setEditingRule(null)}>Cancel</Button>
@@ -771,33 +760,55 @@ export const SlaEscalationView: React.FC<SlaEscalationViewProps> = ({
           </>
         }
       >
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
-          <FormField label="Priority Tier">
-            <TextInput value={editingRule?.priority || ''} readOnly />
-          </FormField>
+        <div className="sla-priority-dialog">
+          {editingRule && (
+            <div className="sla-priority-dialog-badge">
+              <PriorityBadge priority={editingRule.priority} />
+              <span className="sla-priority-dialog-hint">
+                Targets apply to all tickets with this priority under the company SLA hours mode.
+              </span>
+            </div>
+          )}
 
-          <FormField label="Response Target" required hint="Time until first meaningful agent response">
-            <TextInput
-              value={editResponseTarget}
-              onChange={e => setEditResponseTarget(e.target.value)}
-              placeholder="e.g. 1 Working Hour, 4 Hours..."
-            />
-          </FormField>
+          <div className="sla-priority-dialog-grid">
+            <div className="sla-priority-field">
+              <span className="sla-priority-field-label">First reply within</span>
+              <div className="sla-priority-inputs">
+                <TextInput
+                  type="number"
+                  value={String(editFirstReplyValue)}
+                  onChange={e => setEditFirstReplyValue(Math.max(0, Number(e.target.value) || 0))}
+                />
+                <SelectInput
+                  value={editFirstReplyUnit}
+                  onChange={e => setEditFirstReplyUnit(e.target.value as SlaTimeUnit)}
+                >
+                  <option value="Minutes">Minutes</option>
+                  <option value="Hours">Hours</option>
+                  <option value="Days">Days</option>
+                </SelectInput>
+              </div>
+            </div>
 
-          <FormField label="Resolution Target" required hint="Total working time target to resolve request">
-            <TextInput
-              value={editResolutionTarget}
-              onChange={e => setEditResolutionTarget(e.target.value)}
-              placeholder="e.g. 4 Working Hours, 1 Working Day..."
-            />
-          </FormField>
-
-          <FormField label="Warning Threshold">
-            <TextInput
-              value={editWarningThreshold}
-              onChange={e => setEditWarningThreshold(e.target.value)}
-            />
-          </FormField>
+            <div className="sla-priority-field">
+              <span className="sla-priority-field-label">Resolve within</span>
+              <div className="sla-priority-inputs">
+                <TextInput
+                  type="number"
+                  value={String(editResolveValue)}
+                  onChange={e => setEditResolveValue(Math.max(0, Number(e.target.value) || 0))}
+                />
+                <SelectInput
+                  value={editResolveUnit}
+                  onChange={e => setEditResolveUnit(e.target.value as SlaTimeUnit)}
+                >
+                  <option value="Minutes">Minutes</option>
+                  <option value="Hours">Hours</option>
+                  <option value="Days">Days</option>
+                </SelectInput>
+              </div>
+            </div>
+          </div>
         </div>
       </Modal>
 

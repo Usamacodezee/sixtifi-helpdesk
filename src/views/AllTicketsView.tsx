@@ -86,16 +86,6 @@ export const AllTicketsView: React.FC<AllTicketsViewProps> = ({
   const [slaFilter, setSlaFilter] = useState('all');
   const [assigneeFilter, setAssigneeFilter] = useState<'all' | 'unassigned' | 'me'>('all');
 
-  const resetQuickFilters = () => {
-    setStatusFilter('all');
-    setPriorityFilter('all');
-    setCategoryFilter('all');
-    setSlaFilter('all');
-    setAssigneeFilter('all');
-    setAgentFilter('all');
-    setCurrentPage(1);
-  };
-
   // Selection & Bulk Action State
   const [selectedTicketIds, setSelectedTicketIds] = useState<string[]>([]);
   const [activeMenuTicketId, setActiveMenuTicketId] = useState<string | null>(null);

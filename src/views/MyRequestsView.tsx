@@ -11,8 +11,6 @@ import {
   Ticket,
   Plus,
   MoreVertical,
-  Clock,
-  CheckCircle2,
   MessageSquare,
   RotateCcw,
   Eye

@@ -401,10 +401,6 @@ export const CategoriesView: React.FC<CategoriesViewProps> = ({
     return options.find(team => !taken.has(team)) || options[0] || '';
   };
 
-  const activeCount = companyCategories.filter(c => c.status === 'Active').length;
-  const inactiveCount = companyCategories.filter(c => c.status === 'Inactive').length;
-  const openTicketsTotal = companyCategories.reduce((sum, c) => sum + c.openTickets, 0);
-
   const renderCategoryStatusBadge = (status: 'Active' | 'Inactive') => {
     if (status === 'Active') {
       return (

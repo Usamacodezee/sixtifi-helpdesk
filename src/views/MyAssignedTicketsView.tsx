@@ -28,7 +28,6 @@ import {
   AlertTriangle,
   Eye,
   MessageSquare,
-  Sparkles,
   ArrowUpDown,
   ArrowUp,
   Ban,
@@ -82,16 +81,6 @@ export const MyAssignedTicketsView: React.FC<MyAssignedTicketsViewProps> = ({
   const [highPriorityOnly, setHighPriorityOnly] = useState(false);
   const [sortBy, setSortBy] = useState('sla');
   const [isMoreFiltersOpen, setIsMoreFiltersOpen] = useState(false);
-
-  const resetQuickFilters = () => {
-    setStatusFilter('all');
-    setPriorityFilter('all');
-    setCategoryFilter('all');
-    setSlaFilter('all');
-    setDueTodayOnly(false);
-    setHighPriorityOnly(false);
-    setCurrentPage(1);
-  };
 
   // Active Menu State
   const [activeMenuTicketId, setActiveMenuTicketId] = useState<string | null>(null);

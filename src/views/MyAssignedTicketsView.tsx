@@ -8,7 +8,7 @@ import { Pagination } from '../components/ui/Pagination';
 import { EmptyState } from '../components/ui/EmptyState';
 import { Modal } from '../components/ui/Modal';
 import { BulkActionsBar } from '../components/ui/BulkActionsBar';
-import { CannedResponsePicker } from '../components/helpdesk/CannedResponsePicker';
+import { QuickReplyPicker } from '../components/helpdesk/QuickReplyPicker';
 import { ClosingReasonFields, canSubmitClosingReason } from '../components/helpdesk/ClosingReasonFields';
 import {
   getClosingReasonById,
@@ -724,7 +724,7 @@ export const MyAssignedTicketsView: React.FC<MyAssignedTicketsViewProps> = ({
       >
         <FormField label="Reply Message" required>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            <CannedResponsePicker
+            <QuickReplyPicker
               replyScope="public"
               onInsert={text => setQuickReplyText(prev => (prev.trim() ? `${prev.trim()}\n\n${text}` : text))}
               variables={{

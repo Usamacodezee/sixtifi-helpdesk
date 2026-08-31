@@ -10,10 +10,10 @@ This document describes the full **Settings** module from the Sixtifi Helpdesk p
 | Styles | `src/views/SettingsView.css` |
 | General settings data | `src/data/generalSettings.ts` |
 | SLA hours helpers | `src/data/slaHoursSettings.ts` |
-| Canned responses data | `src/data/cannedResponses.ts` |
+| Quick replies data | `src/data/quickReplies.ts` |
 | Closing reasons data | `src/data/closingReasons.ts` |
 | Companies | `src/data/companies.ts` |
-| Canned response consumer | `src/components/helpdesk/CannedResponsePicker.tsx` |
+| Quick reply consumer | `src/components/helpdesk/QuickReplyPicker.tsx` |
 | Closing reason consumer | `src/components/helpdesk/ClosingReasonFields.tsx` |
 | App integration | `src/App.tsx` |
 
@@ -44,14 +44,14 @@ The Settings page is a **multi-tab admin screen** scoped per company/workspace. 
 | Tab | ID | Editable | Scope |
 |-----|-----|----------|-------|
 | General Settings | `general` | Yes (Save button) | Per company |
-| Canned Responses | `canned-responses` | Yes (immediate save) | Global (not per company) |
+| Quick Replies | `quick-replies` | Yes (immediate save) | Global (not per company) |
 | Closing Reasons | `closing-reasons` | Yes (immediate save) | Global |
 | Role Permissions | `permissions` | Read-only matrix | Static preview |
 
 **Key design decisions:**
 
 - **General settings** are company-scoped and use a dirty-state pattern with an explicit **Save Settings** button.
-- **Canned responses** and **closing reasons** save immediately on each CRUD action (no dirty tracking).
+- **Quick replies** and **closing reasons** save immediately on each CRUD action (no dirty tracking).
 - **Permissions** tab is a static read-only matrix (no persistence).
 - Storage in this demo uses **localStorage**; in production you would replace the data layer with REST/GraphQL APIs while keeping the same types and UI flows.
 
@@ -71,12 +71,12 @@ The Settings page is a **multi-tab admin screen** scoped per company/workspace. 
 │                      SettingsView.tsx                            │
 │                                                                  │
 │  ┌──────────────┐  ┌──────────────────┐  ┌───────────────────┐  │
-│  │ General Tab  │  │ Canned Responses │  │ Closing Reasons   │  │
+│  │ General Tab  │  │ Quick Replies │  │ Closing Reasons   │  │
 │  │ (dirty save) │  │ (instant save)   │  │ (instant save)    │  │
 │  └──────┬───────┘  └────────┬─────────┘  └─────────┬─────────┘  │
 │         │                   │                      │             │
 │         ▼                   ▼                      ▼             │
-│  generalSettings.ts   cannedResponses.ts   closingReasons.ts   │
+│  generalSettings.ts   quickReplies.ts   closingReasons.ts   │
 │         │                   │                      │             │
 │         ▼                   ▼                      ▼             │
 │     localStorage          localStorage           localStorage    │
@@ -87,7 +87,7 @@ The Settings page is a **multi-tab admin screen** scoped per company/workspace. 
                              │
          ┌───────────────────┼───────────────────┐
          ▼                   ▼                   ▼
-  SlaEscalationView   CannedResponsePicker   ClosingReasonFields
+  SlaEscalationView   QuickReplyPicker   ClosingReasonFields
   (SLA hours mode)    (ticket reply UI)      (resolve/close modals)
 ```
 
@@ -98,7 +98,7 @@ The Settings page is a **multi-tab admin screen** scoped per company/workspace. 
 | `activeTab` | SettingsView local state | No |
 | General form fields | SettingsView local state | On Save → `saveGeneralSettings()` |
 | `isDirty`, unsaved modal | SettingsView local state | No |
-| `cannedResponses` | SettingsView local state | On each CRUD → `saveCannedResponses()` |
+| `quickReplies` | SettingsView local state | On each CRUD → `saveQuickReplys()` |
 | `closingReasons` | SettingsView local state | On each CRUD → `saveClosingReasons()` |
 | `companyId` | Parent (`App.tsx`) | Parent responsibility |
 
@@ -144,7 +144,7 @@ case 'settings':
 ### Internal tab type
 
 ```typescript
-type SettingsTab = 'general' | 'permissions' | 'canned-responses' | 'closing-reasons';
+type SettingsTab = 'general' | 'permissions' | 'quick-replies' | 'closing-reasons';
 ```
 
 ---
@@ -167,7 +167,7 @@ Uses shared `queue-tabs-bar` / `queue-tab-btn` classes (same pattern as other vi
 | Tab | Icon (lucide-react) | Behavior |
 |-----|---------------------|----------|
 | General Settings | `Sliders` | Form with dirty tracking |
-| Canned Responses | `MessageSquareQuote` | Table + modal CRUD |
+| Quick Replies | `MessageSquareQuote` | Table + modal CRUD |
 | Closing Reasons | `Tag` | Table + modal CRUD |
 | Role Permissions | `ShieldCheck` | Static table |
 
@@ -192,7 +192,7 @@ Uses shared `queue-tabs-bar` / `queue-tab-btn` classes (same pattern as other vi
 
 **Info box:** Dynamic SLA description from `getSlaHoursModeDescription(slaHoursMode)`.
 
-### Tab 2: Canned Responses
+### Tab 2: Quick Replies
 
 - Table columns: Title (with body preview), Category, Scope, Status, Actions
 - **Add Template** opens modal
@@ -215,7 +215,7 @@ Uses shared `queue-tabs-bar` / `queue-tab-btn` classes (same pattern as other vi
 
 - Table columns: Label (with description), Context, Comment, Status, Actions
 - **Add Reason** opens modal
-- Same CRUD pattern as canned responses
+- Same CRUD pattern as quick replies
 
 **Modal fields:**
 
@@ -301,12 +301,12 @@ export const SLA_HOURS_MODE_OPTIONS: Array<{
 ];
 ```
 
-### Canned response
+### Quick reply
 
 ```typescript
-export type CannedResponseScope = 'public' | 'internal' | 'both';
+export type QuickReplyScope = 'public' | 'internal' | 'both';
 
-export type CannedResponseCategory =
+export type QuickReplyCategory =
   | 'General'
   | 'Attendance'
   | 'Payroll'
@@ -315,12 +315,12 @@ export type CannedResponseCategory =
   | 'IT'
   | 'Administration';
 
-export interface CannedResponse {
+export interface QuickReply {
   id: string;
   title: string;
   body: string;
-  category: CannedResponseCategory;
-  scope: CannedResponseScope;
+  category: QuickReplyCategory;
+  scope: QuickReplyScope;
   status: 'Active' | 'Inactive';
 }
 ```
@@ -349,7 +349,7 @@ export interface ClosingReason {
 | Key | Content |
 |-----|---------|
 | `sixtifi-helpdesk-general-settings-by-company` | `Record<companyId, CompanyGeneralSettings>` |
-| `sixtifi-helpdesk-canned-responses` | `CannedResponse[]` |
+| `sixtifi-helpdesk-quick-replies` | `QuickReply[]` |
 | `sixtifi-helpdesk-closing-reasons` | `ClosingReason[]` |
 
 ### General settings — read merge order
@@ -379,7 +379,7 @@ const SEED: Record<string, Partial<CompanyGeneralSettings>> = {
 
 **Migration note:** Legacy value `'Category Specialist Preferred'` is remapped to `'Team Lead Preferred'` on read.
 
-### Canned responses & closing reasons
+### Quick replies & closing reasons
 
 - If localStorage is empty or invalid → return **default seed arrays**
 - Saves always write the full array (replace-all pattern)
@@ -401,18 +401,18 @@ getSlaHoursModeLabel(mode?: SlaHoursMode): string
 getSlaHoursModeDescription(mode?: SlaHoursMode): string
 ```
 
-#### Canned responses
+#### Quick replies
 
 ```typescript
-getCannedResponses(): CannedResponse[]
-saveCannedResponses(responses: CannedResponse[]): void
-notifyCannedResponsesUpdated(): void
-applyCannedResponseVariables(body: string, variables: Record<string, string>): string
-filterCannedResponses(
-  responses: CannedResponse[],
+getQuickReplys(): QuickReply[]
+saveQuickReplys(responses: QuickReply[]): void
+notifyQuickReplysUpdated(): void
+applyQuickReplyVariables(body: string, variables: Record<string, string>): string
+filterQuickReplys(
+  responses: QuickReply[],
   replyScope: 'public' | 'internal',
   searchQuery?: string
-): CannedResponse[]
+): QuickReply[]
 ```
 
 #### Closing reasons
@@ -476,7 +476,7 @@ Use these shapes if you replace localStorage with a backend API.
 }
 ```
 
-### GET `/api/canned-responses`
+### GET `/api/quick-replies`
 
 **Response `200`:**
 
@@ -496,7 +496,7 @@ Use these shapes if you replace localStorage with a backend API.
 }
 ```
 
-### POST `/api/canned-responses`
+### POST `/api/quick-replies`
 
 **Request:**
 
@@ -524,11 +524,11 @@ Use these shapes if you replace localStorage with a backend API.
 }
 ```
 
-### PATCH `/api/canned-responses/:id`
+### PATCH `/api/quick-replies/:id`
 
 Toggle status or update fields. Same item shape in response.
 
-### DELETE `/api/canned-responses/:id`
+### DELETE `/api/quick-replies/:id`
 
 **Response `204`** (no body)
 
@@ -578,9 +578,9 @@ Toggle status or update fields. Same item shape in response.
 | Action | Type | Title | Description |
 |--------|------|-------|-------------|
 | Save general settings | `success` | Settings Saved | `General settings updated for {company.name}.` |
-| Add canned response | `success` | Template Added | `"{title}" is now available to agents.` |
-| Edit canned response | `success` | Template Updated | `"{title}" is now available to agents.` |
-| Delete canned response | `info` | Template Removed | Canned response deleted. |
+| Add quick reply | `success` | Template Added | `"{title}" is now available to agents.` |
+| Edit quick reply | `success` | Template Updated | `"{title}" is now available to agents.` |
+| Delete quick reply | `info` | Template Removed | Quick reply deleted. |
 | Add closing reason | `success` | Closing Reason Added | `"{label}" is now available when closing tickets.` |
 | Edit closing reason | `success` | Closing Reason Updated | `"{label}" is now available when closing tickets.` |
 | Delete closing reason | `info` | Reason Removed | Closing reason deleted. |
@@ -595,7 +595,7 @@ Settings changes broadcast via `window.CustomEvent` so other views update withou
 |----------------|------------|----------------|
 | `sixtifi-general-settings-updated` | `saveGeneralSettings()` | `{ companyId: string }` |
 | `sixtifi-sla-hours-mode-updated` | `saveGeneralSettings()` | `{ companyId: string, mode: SlaHoursMode }` |
-| `sixtifi-canned-responses-updated` | `saveCannedResponses()` | none |
+| `sixtifi-quick-replies-updated` | `saveQuickReplys()` | none |
 | `sixtifi-closing-reasons-updated` | `saveClosingReasons()` | none |
 
 ### Listeners in this project
@@ -603,7 +603,7 @@ Settings changes broadcast via `window.CustomEvent` so other views update withou
 | Consumer | Event listened |
 |----------|----------------|
 | `SlaEscalationView` | `sixtifi-sla-hours-mode-updated` |
-| `CannedResponsePicker` | `sixtifi-canned-responses-updated` |
+| `QuickReplyPicker` | `sixtifi-quick-replies-updated` |
 | `ClosingReasonFields` | `sixtifi-closing-reasons-updated` |
 
 **Pattern for consumers:**
@@ -669,7 +669,7 @@ saveGeneralSettings(companyId, { ...fields })
 ### Flow C: Tab switch with unsaved general changes
 
 ```
-User clicks tab (general or permissions only — NOT canned/closing)
+User clicks tab (general or permissions only — NOT quick-replies/closing)
         │
         ▼
 handleTabClick(tab)
@@ -685,40 +685,40 @@ Modal actions:
   - Save Changes → save general settings, then switch tab/company
 ```
 
-> **Important:** Canned responses and closing reasons tabs bypass dirty checking because they auto-save per action.
+> **Important:** Quick replies and closing reasons tabs bypass dirty checking because they auto-save per action.
 
-### Flow D: Canned response CRUD
+### Flow D: Quick reply CRUD
 
 ```
 Add/Edit → open modal → fill form → Save
         │
         ├─ Validate: title AND body must be non-empty (trimmed)
-        ├─ Build payload with id = existing OR `cr-${Date.now()}`
+        ├─ Build payload with id = existing OR `qr-${Date.now()}`
         ├─ Update local state array
-        ├─ saveCannedResponses(next) → localStorage + event
+        ├─ saveQuickReplys(next) → localStorage + event
         ├─ Close modal
         └─ Success toast
 
-Toggle status → map array, flip Active/Inactive → saveCannedResponses
+Toggle status → map array, flip Active/Inactive → saveQuickReplys
 
-Delete → filter by id → saveCannedResponses → info toast
+Delete → filter by id → saveQuickReplys → info toast
 ```
 
 ### Flow E: Closing reason CRUD
 
-Same as canned responses except:
+Same as quick replies except:
 
 - Only `label` is required (not body)
 - ID format: `cr-custom-${Date.now()}` for new items
 - `description` stored as `undefined` if empty string
 
-### Flow F: Agent uses canned response in ticket reply
+### Flow F: Agent uses quick reply in ticket reply
 
 ```
-Agent opens CannedResponsePicker (replyScope: 'public' | 'internal')
+Agent opens QuickReplyPicker (replyScope: 'public' | 'internal')
         │
         ▼
-filterCannedResponses(responses, replyScope, searchQuery)
+filterQuickReplys(responses, replyScope, searchQuery)
   - status === 'Active'
   - scope matches replyScope OR scope === 'both'
   - optional text search on title/body/category
@@ -727,7 +727,7 @@ filterCannedResponses(responses, replyScope, searchQuery)
 Agent selects template
         │
         ▼
-applyCannedResponseVariables(body, { requester, ticketId, agent })
+applyQuickReplyVariables(body, { requester, ticketId, agent })
         │
         ▼
 onInsert(resolvedText) → inserted into reply composer
@@ -754,12 +754,12 @@ canSubmitClosingReason(reasonId, comment)
 
 ## 10. Downstream Consumers
 
-### `CannedResponsePicker`
+### `QuickReplyPicker`
 
 **Props:**
 
 ```typescript
-interface CannedResponsePickerProps {
+interface QuickReplyPickerProps {
   replyScope: 'public' | 'internal';
   onInsert: (text: string) => void;
   variables?: Record<string, string>;  // {{requester}}, {{ticketId}}, {{agent}}
@@ -809,12 +809,12 @@ Reads `getSlaHoursMode(companyId)` and listens for `SLA_HOURS_UPDATED_EVENT` to 
 | SLA mode required | UI `required` on FormField |
 | Auto-assign algorithm | Only shown when `enableAutoAssignment === true` |
 
-### Canned response modal
+### Quick reply modal
 
 | Rule | Blocks save |
 |------|-------------|
-| `cannedFormTitle.trim()` empty | Yes — Save button `disabled` |
-| `cannedFormBody.trim()` empty | Yes — Save button `disabled` |
+| `quickReplyFormTitle.trim()` empty | Yes — Save button `disabled` |
+| `quickReplyFormBody.trim()` empty | Yes — Save button `disabled` |
 
 ### Closing reason modal
 
@@ -848,9 +848,9 @@ Import `SettingsView.css`. Key classes:
 | `.settings-card-subtitle` | Muted helper text |
 | `.settings-form-grid` | 2-column responsive grid (1 col below 900px) |
 | `.permissions-matrix-table` | Shared table for permissions + CRUD lists |
-| `.canned-responses-table` | Left-align cells, right-align actions column |
-| `.canned-status-pill` | Clickable Active/Inactive badge |
-| `.canned-status-pill.is-active` | Green active state |
+| `.quick-replies-table` | Left-align cells, right-align actions column |
+| `.quick-reply-status-pill` | Clickable Active/Inactive badge |
+| `.quick-reply-status-pill.is-active` | Green active state |
 
 **CSS variables used:** `--space-*`, `--bg-surface`, `--bg-subtle`, `--border-default`, `--border-subtle`, `--text-primary`, `--text-secondary`, `--text-muted`, `--radius-md`, `--radius-sm`, `--radius-full`, `--shadow-xs`, `--font-weight-bold`.
 
@@ -873,7 +873,7 @@ Import `SettingsView.css`. Key classes:
 
 - [ ] Copy/adapt all interfaces from Section 5
 - [ ] Implement `getGeneralSettings` / `saveGeneralSettings` (API or storage)
-- [ ] Implement canned response CRUD functions + defaults
+- [ ] Implement quick reply CRUD functions + defaults
 - [ ] Implement closing reason CRUD functions + defaults
 - [ ] Implement company list + `getCompanyById`
 - [ ] Add event constants or cache invalidation strategy
@@ -894,7 +894,7 @@ Import `SettingsView.css`. Key classes:
 - [ ] Unsaved changes modal for tab/company navigation
 - [ ] SLA info box with dynamic description
 
-### Phase 4 — Canned responses tab
+### Phase 4 — Quick replies tab
 
 - [ ] Table listing with preview truncation (90 chars)
 - [ ] Add/Edit modal with validation
@@ -903,7 +903,7 @@ Import `SettingsView.css`. Key classes:
 
 ### Phase 5 — Closing reasons tab
 
-- [ ] Same CRUD pattern as canned responses
+- [ ] Same CRUD pattern as quick replies
 - [ ] Context filter values: resolve, close, spam, duplicate
 - [ ] Comment required/optional field
 
@@ -913,7 +913,7 @@ Import `SettingsView.css`. Key classes:
 
 ### Phase 7 — Consumers
 
-- [ ] `CannedResponsePicker` in ticket reply composer
+- [ ] `QuickReplyPicker` in ticket reply composer
 - [ ] `ClosingReasonFields` in resolve/close/spam/duplicate modals
 - [ ] SLA view listens for hours mode changes
 
@@ -927,9 +927,9 @@ Import `SettingsView.css`. Key classes:
 
 ## Default Seed Data Reference
 
-### Default canned responses (7 items)
+### Default quick replies (7 items)
 
-See `DEFAULT_CANNED_RESPONSES` in `src/data/cannedResponses.ts` for full list. Categories covered: General, Attendance, Payroll. Scopes: public and internal.
+See `DEFAULT_QUICK_REPLIES` in `src/data/quickReplies.ts` for full list. Categories covered: General, Attendance, Payroll. Scopes: public and internal.
 
 ### Default closing reasons (9 items)
 
@@ -946,7 +946,7 @@ See `DEFAULT_CANNED_RESPONSES` in `src/data/cannedResponses.ts` for full list. C
 
 | Entity | New ID pattern |
 |--------|----------------|
-| Canned response | `cr-${Date.now()}` |
+| Quick reply | `qr-${Date.now()}` |
 | Closing reason | `cr-custom-${Date.now()}` |
 
 Replace with server-generated UUIDs in production.
@@ -955,8 +955,8 @@ Replace with server-generated UUIDs in production.
 
 ## Notes for Backend Migration
 
-1. **Company scope:** Only general settings are per-company. Canned responses and closing reasons are global in the current demo — decide if your product needs company-scoped templates/reasons.
-2. **Optimistic UI:** Canned/closing tabs update state immediately; consider optimistic updates + rollback on API failure.
+1. **Company scope:** Only general settings are per-company. Quick replies and closing reasons are global in the current demo — decide if your product needs company-scoped templates/reasons.
+2. **Optimistic UI:** Quick replies/closing tabs update state immediately; consider optimistic updates + rollback on API failure.
 3. **Permissions tab:** Currently static. A real implementation would fetch role-capability mappings from an auth/RBAC service.
 4. **SLA `custom-hours`:** Type exists but UI does not expose it yet — reserve for future shift-calendar integration.
 5. **Assignment algorithm:** Stored as display string, not enum — consider normalizing to enum values in API (`round_robin`, `lowest_workload`, `team_lead`).

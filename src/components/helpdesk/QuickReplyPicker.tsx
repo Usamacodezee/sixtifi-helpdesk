@@ -3,22 +3,22 @@ import { Button } from '../ui/Button';
 import { SearchInput } from '../ui/FormControls';
 import { MessageSquareQuote } from 'lucide-react';
 import {
-  applyCannedResponseVariables,
-  CANNED_RESPONSES_UPDATED_EVENT,
-  CannedResponse,
-  filterCannedResponses,
-  getCannedResponses
-} from '../../data/cannedResponses';
-import './CannedResponsePicker.css';
+  applyQuickReplyVariables,
+  QUICK_REPLIES_UPDATED_EVENT,
+  QuickReply,
+  filterQuickReplies,
+  getQuickReplies
+} from '../../data/quickReplies';
+import './QuickReplyPicker.css';
 
-export interface CannedResponsePickerProps {
+export interface QuickReplyPickerProps {
   replyScope: 'public' | 'internal';
   onInsert: (text: string) => void;
   variables?: Record<string, string>;
   disabled?: boolean;
 }
 
-export const CannedResponsePicker: React.FC<CannedResponsePickerProps> = ({
+export const QuickReplyPicker: React.FC<QuickReplyPickerProps> = ({
   replyScope,
   onInsert,
   variables = {},
@@ -26,15 +26,15 @@ export const CannedResponsePicker: React.FC<CannedResponsePickerProps> = ({
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [responses, setResponses] = useState<CannedResponse[]>(() => getCannedResponses());
+  const [replies, setReplies] = useState<QuickReply[]>(() => getQuickReplies());
   const containerRef = useRef<HTMLDivElement>(null);
 
-  const refresh = () => setResponses(getCannedResponses());
+  const refresh = () => setReplies(getQuickReplies());
 
   useEffect(() => {
     const handleUpdate = () => refresh();
-    window.addEventListener(CANNED_RESPONSES_UPDATED_EVENT, handleUpdate);
-    return () => window.removeEventListener(CANNED_RESPONSES_UPDATED_EVENT, handleUpdate);
+    window.addEventListener(QUICK_REPLIES_UPDATED_EVENT, handleUpdate);
+    return () => window.removeEventListener(QUICK_REPLIES_UPDATED_EVENT, handleUpdate);
   }, []);
 
   useEffect(() => {
@@ -50,17 +50,17 @@ export const CannedResponsePicker: React.FC<CannedResponsePickerProps> = ({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [isOpen]);
 
-  const filtered = filterCannedResponses(responses, replyScope, searchQuery);
+  const filtered = filterQuickReplies(replies, replyScope, searchQuery);
 
-  const handleSelect = (item: CannedResponse) => {
-    const text = applyCannedResponseVariables(item.body, variables);
+  const handleSelect = (item: QuickReply) => {
+    const text = applyQuickReplyVariables(item.body, variables);
     onInsert(text);
     setIsOpen(false);
     setSearchQuery('');
   };
 
   return (
-    <div className="canned-picker" ref={containerRef}>
+    <div className="quick-reply-picker" ref={containerRef}>
       <Button
         type="button"
         variant="ghost"
@@ -69,41 +69,41 @@ export const CannedResponsePicker: React.FC<CannedResponsePickerProps> = ({
         disabled={disabled}
         onClick={() => setIsOpen(prev => !prev)}
       >
-        Canned Response
+        Quick Reply
       </Button>
 
       {isOpen && (
-        <div className="canned-picker-popover" role="listbox" aria-label="Canned responses">
-          <div className="canned-picker-header">
-            <span className="canned-picker-title">
+        <div className="quick-reply-picker-popover" role="listbox" aria-label="Quick replies">
+          <div className="quick-reply-picker-header">
+            <span className="quick-reply-picker-title">
               {replyScope === 'internal' ? 'Internal note templates' : 'Public reply templates'}
             </span>
-            <span className="canned-picker-count">{filtered.length} available</span>
+            <span className="quick-reply-picker-count">{filtered.length} available</span>
           </div>
 
           <SearchInput
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
             onClear={() => setSearchQuery('')}
-            placeholder="Search templates..."
+            placeholder="Search quick replies..."
           />
 
-          <div className="canned-picker-list">
+          <div className="quick-reply-picker-list">
             {filtered.length === 0 ? (
-              <div className="canned-picker-empty">No templates match this reply type.</div>
+              <div className="quick-reply-picker-empty">No quick replies match this reply type.</div>
             ) : (
               filtered.map(item => (
                 <button
                   key={item.id}
                   type="button"
-                  className="canned-picker-item"
+                  className="quick-reply-picker-item"
                   onClick={() => handleSelect(item)}
                 >
-                  <div className="canned-picker-item-top">
-                    <span className="canned-picker-item-title">{item.title}</span>
-                    <span className="canned-picker-item-category">{item.category}</span>
+                  <div className="quick-reply-picker-item-top">
+                    <span className="quick-reply-picker-item-title">{item.title}</span>
+                    <span className="quick-reply-picker-item-category">{item.category}</span>
                   </div>
-                  <span className="canned-picker-item-preview">{item.body}</span>
+                  <span className="quick-reply-picker-item-preview">{item.body}</span>
                 </button>
               ))
             )}

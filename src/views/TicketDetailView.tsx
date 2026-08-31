@@ -4,7 +4,7 @@ import { Button, IconButton } from '../components/ui/Button';
 import { StatusBadge, PriorityBadge, TicketStatus, TicketPriority, getPlainStatusLabel } from '../components/ui/Badge';
 import { FormField, SelectInput, TextareaInput } from '../components/ui/FormControls';
 import { Modal } from '../components/ui/Modal';
-import { CannedResponsePicker } from '../components/helpdesk/CannedResponsePicker';
+import { QuickReplyPicker } from '../components/helpdesk/QuickReplyPicker';
 import { ClosingReasonFields, canSubmitClosingReason } from '../components/helpdesk/ClosingReasonFields';
 import {
   getClosingReasonById,
@@ -174,7 +174,7 @@ export const TicketDetailView: React.FC<TicketDetailViewProps> = ({
     replyInputRef.current?.focus();
   };
 
-  const cannedVariables = {
+  const quickReplyVariables = {
     requester: 'Alex Rivera',
     ticketId,
     agent: 'Rahul Sharma'
@@ -544,10 +544,10 @@ export const TicketDetailView: React.FC<TicketDetailViewProps> = ({
 
               <div className="reply-actions-bar">
                 {userRole === 'agent' && (
-                  <CannedResponsePicker
+                  <QuickReplyPicker
                     replyScope={replyType === 'internal' ? 'internal' : 'public'}
                     onInsert={appendReplyText}
-                    variables={cannedVariables}
+                    variables={quickReplyVariables}
                   />
                 )}
 

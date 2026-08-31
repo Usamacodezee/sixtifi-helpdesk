@@ -15,12 +15,12 @@ import {
   Trash2
 } from 'lucide-react';
 import {
-  CannedResponse,
-  CannedResponseCategory,
-  CannedResponseScope,
-  getCannedResponses,
-  saveCannedResponses
-} from '../data/cannedResponses';
+  QuickReply,
+  QuickReplyCategory,
+  QuickReplyScope,
+  getQuickReplies,
+  saveQuickReplies
+} from '../data/quickReplies';
 import {
   ClosingReason,
   ClosingReasonContext,
@@ -42,7 +42,7 @@ export interface SettingsViewProps {
   onShowToast: (type: 'success' | 'error' | 'warning' | 'info', title: string, desc?: string) => void;
 }
 
-type SettingsTab = 'general' | 'permissions' | 'canned-responses' | 'closing-reasons';
+type SettingsTab = 'general' | 'permissions' | 'quick-replies' | 'closing-reasons';
 
 export const SettingsView: React.FC<SettingsViewProps> = ({
   companyId,
@@ -85,15 +85,15 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     loadCompanySettings(companyId);
   }, [companyId]);
 
-  // Canned responses management
-  const [cannedResponses, setCannedResponses] = useState<CannedResponse[]>(() => getCannedResponses());
-  const [editingCanned, setEditingCanned] = useState<CannedResponse | null>(null);
-  const [isCannedModalOpen, setIsCannedModalOpen] = useState(false);
-  const [cannedFormTitle, setCannedFormTitle] = useState('');
-  const [cannedFormBody, setCannedFormBody] = useState('');
-  const [cannedFormCategory, setCannedFormCategory] = useState<CannedResponseCategory>('General');
-  const [cannedFormScope, setCannedFormScope] = useState<CannedResponseScope>('public');
-  const [cannedFormStatus, setCannedFormStatus] = useState<'Active' | 'Inactive'>('Active');
+  // Quick replies management
+  const [quickReplies, setQuickReplies] = useState<QuickReply[]>(() => getQuickReplies());
+  const [editingQuickReply, setEditingQuickReply] = useState<QuickReply | null>(null);
+  const [isQuickReplyModalOpen, setIsQuickReplyModalOpen] = useState(false);
+  const [quickReplyFormTitle, setQuickReplyFormTitle] = useState('');
+  const [quickReplyFormBody, setQuickReplyFormBody] = useState('');
+  const [quickReplyFormCategory, setQuickReplyFormCategory] = useState<QuickReplyCategory>('General');
+  const [quickReplyFormScope, setQuickReplyFormScope] = useState<QuickReplyScope>('public');
+  const [quickReplyFormStatus, setQuickReplyFormStatus] = useState<'Active' | 'Inactive'>('Active');
 
   // Closing reasons management
   const [closingReasons, setClosingReasons] = useState<ClosingReason[]>(() => getClosingReasons());
@@ -111,7 +111,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   };
 
   const handleTabClick = (tab: SettingsTab) => {
-    if (isDirty && tab !== 'canned-responses' && tab !== 'closing-reasons') {
+    if (isDirty && tab !== 'quick-replies' && tab !== 'closing-reasons') {
       setPendingTabSwitch(tab);
       setIsUnsavedModalOpen(true);
     } else {
@@ -119,71 +119,71 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     }
   };
 
-  const openCannedModal = (item?: CannedResponse) => {
+  const openQuickReplyModal = (item?: QuickReply) => {
     if (item) {
-      setEditingCanned(item);
-      setCannedFormTitle(item.title);
-      setCannedFormBody(item.body);
-      setCannedFormCategory(item.category);
-      setCannedFormScope(item.scope);
-      setCannedFormStatus(item.status);
+      setEditingQuickReply(item);
+      setQuickReplyFormTitle(item.title);
+      setQuickReplyFormBody(item.body);
+      setQuickReplyFormCategory(item.category);
+      setQuickReplyFormScope(item.scope);
+      setQuickReplyFormStatus(item.status);
     } else {
-      setEditingCanned(null);
-      setCannedFormTitle('');
-      setCannedFormBody('');
-      setCannedFormCategory('General');
-      setCannedFormScope('public');
-      setCannedFormStatus('Active');
+      setEditingQuickReply(null);
+      setQuickReplyFormTitle('');
+      setQuickReplyFormBody('');
+      setQuickReplyFormCategory('General');
+      setQuickReplyFormScope('public');
+      setQuickReplyFormStatus('Active');
     }
-    setIsCannedModalOpen(true);
+    setIsQuickReplyModalOpen(true);
   };
 
-  const closeCannedModal = () => {
-    setIsCannedModalOpen(false);
-    setEditingCanned(null);
+  const closeQuickReplyModal = () => {
+    setIsQuickReplyModalOpen(false);
+    setEditingQuickReply(null);
   };
 
-  const handleSaveCannedResponse = () => {
-    if (!cannedFormTitle.trim() || !cannedFormBody.trim()) return;
+  const handleSaveQuickReply = () => {
+    if (!quickReplyFormTitle.trim() || !quickReplyFormBody.trim()) return;
 
-    const payload: CannedResponse = {
-      id: editingCanned?.id || `cr-${Date.now()}`,
-      title: cannedFormTitle.trim(),
-      body: cannedFormBody.trim(),
-      category: cannedFormCategory,
-      scope: cannedFormScope,
-      status: cannedFormStatus
+    const payload: QuickReply = {
+      id: editingQuickReply?.id || `qr-${Date.now()}`,
+      title: quickReplyFormTitle.trim(),
+      body: quickReplyFormBody.trim(),
+      category: quickReplyFormCategory,
+      scope: quickReplyFormScope,
+      status: quickReplyFormStatus
     };
 
-    const next = editingCanned
-      ? cannedResponses.map(item => (item.id === editingCanned.id ? payload : item))
-      : [...cannedResponses, payload];
+    const next = editingQuickReply
+      ? quickReplies.map(item => (item.id === editingQuickReply.id ? payload : item))
+      : [...quickReplies, payload];
 
-    setCannedResponses(next);
-    saveCannedResponses(next);
-    closeCannedModal();
+    setQuickReplies(next);
+    saveQuickReplies(next);
+    closeQuickReplyModal();
     onShowToast(
       'success',
-      editingCanned ? 'Template Updated' : 'Template Added',
+      editingQuickReply ? 'Template Updated' : 'Template Added',
       `"${payload.title}" is now available to agents.`
     );
   };
 
-  const handleDeleteCannedResponse = (id: string) => {
-    const next = cannedResponses.filter(item => item.id !== id);
-    setCannedResponses(next);
-    saveCannedResponses(next);
-    onShowToast('info', 'Template Removed', 'Canned response deleted.');
+  const handleDeleteQuickReply = (id: string) => {
+    const next = quickReplies.filter(item => item.id !== id);
+    setQuickReplies(next);
+    saveQuickReplies(next);
+    onShowToast('info', 'Template Removed', 'Quick reply deleted.');
   };
 
-  const handleToggleCannedStatus = (id: string) => {
-    const next = cannedResponses.map(item =>
+  const handleToggleQuickReplyStatus = (id: string) => {
+    const next = quickReplies.map(item =>
       item.id === id
         ? { ...item, status: item.status === 'Active' ? 'Inactive' as const : 'Active' as const }
         : item
     );
-    setCannedResponses(next);
-    saveCannedResponses(next);
+    setQuickReplies(next);
+    saveQuickReplies(next);
   };
 
   const openClosingReasonModal = (item?: ClosingReason) => {
@@ -328,11 +328,11 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         </button>
 
         <button
-          className={`queue-tab-btn ${activeTab === 'canned-responses' ? 'is-active' : ''}`}
-          onClick={() => handleTabClick('canned-responses')}
+          className={`queue-tab-btn ${activeTab === 'quick-replies' ? 'is-active' : ''}`}
+          onClick={() => handleTabClick('quick-replies')}
         >
           <MessageSquareQuote size={14} style={{ marginRight: '6px' }} />
-          Canned Responses
+          Quick Replies
         </button>
 
         <button
@@ -546,22 +546,22 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         </div>
       )}
 
-      {/* TAB 5: CANNED RESPONSES */}
-      {activeTab === 'canned-responses' && (
+      {/* TAB: QUICK REPLIES */}
+      {activeTab === 'quick-replies' && (
         <div className="settings-card">
           <div className="settings-card-header">
             <div>
-              <span className="settings-card-title">Canned Response Templates</span>
+              <span className="settings-card-title">Quick Reply Templates</span>
               <div className="settings-card-subtitle">
                 Pre-written replies agents can insert when responding to tickets. Use placeholders like {'{{requester}}'}, {'{{ticketId}}'}, {'{{agent}}'}.
               </div>
             </div>
-            <Button variant="primary" size="sm" leftIcon={<Plus size={14} />} onClick={() => openCannedModal()}>
+            <Button variant="primary" size="sm" leftIcon={<Plus size={14} />} onClick={() => openQuickReplyModal()}>
               Add Template
             </Button>
           </div>
 
-          <table className="permissions-matrix-table canned-responses-table">
+          <table className="permissions-matrix-table quick-replies-table">
             <thead>
               <tr>
                 <th>Title</th>
@@ -572,7 +572,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               </tr>
             </thead>
             <tbody>
-              {cannedResponses.map(item => (
+              {quickReplies.map(item => (
                 <tr key={item.id}>
                   <td>
                     <div style={{ fontWeight: 600, fontSize: '13px', color: 'var(--text-primary)' }}>{item.title}</div>
@@ -585,8 +585,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   <td>
                     <button
                       type="button"
-                      className={`canned-status-pill ${item.status === 'Active' ? 'is-active' : ''}`}
-                      onClick={() => handleToggleCannedStatus(item.id)}
+                      className={`quick-reply-status-pill ${item.status === 'Active' ? 'is-active' : ''}`}
+                      onClick={() => handleToggleQuickReplyStatus(item.id)}
                     >
                       {item.status}
                     </button>
@@ -598,14 +598,14 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                         ariaLabel="Edit template"
                         variant="ghost"
                         size="sm"
-                        onClick={() => openCannedModal(item)}
+                        onClick={() => openQuickReplyModal(item)}
                       />
                       <IconButton
                         icon={<Trash2 size={14} />}
                         ariaLabel="Delete template"
                         variant="ghost"
                         size="sm"
-                        onClick={() => handleDeleteCannedResponse(item.id)}
+                        onClick={() => handleDeleteQuickReply(item.id)}
                       />
                     </div>
                   </td>
@@ -631,7 +631,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             </Button>
           </div>
 
-          <table className="permissions-matrix-table canned-responses-table">
+          <table className="permissions-matrix-table quick-replies-table">
             <thead>
               <tr>
                 <th>Label</th>
@@ -657,7 +657,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   <td>
                     <button
                       type="button"
-                      className={`canned-status-pill ${item.status === 'Active' ? 'is-active' : ''}`}
+                      className={`quick-reply-status-pill ${item.status === 'Active' ? 'is-active' : ''}`}
                       onClick={() => handleToggleClosingReasonStatus(item.id)}
                     >
                       {item.status}
@@ -742,21 +742,21 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         </div>
       </Modal>
 
-      {/* CANNED RESPONSE EDITOR MODAL */}
+      {/* QUICK REPLY EDITOR MODAL */}
       <Modal
-        isOpen={isCannedModalOpen}
-        onClose={closeCannedModal}
-        title={editingCanned ? 'Edit Canned Response' : 'Add Canned Response'}
+        isOpen={isQuickReplyModalOpen}
+        onClose={closeQuickReplyModal}
+        title={editingQuickReply ? 'Edit Quick Reply' : 'Add Quick Reply'}
         subtitle="Templates appear in the ticket reply composer for agents."
         footer={
           <>
-            <Button variant="secondary" onClick={closeCannedModal}>Cancel</Button>
+            <Button variant="secondary" onClick={closeQuickReplyModal}>Cancel</Button>
             <Button
               variant="primary"
-              disabled={!cannedFormTitle.trim() || !cannedFormBody.trim()}
-              onClick={handleSaveCannedResponse}
+              disabled={!quickReplyFormTitle.trim() || !quickReplyFormBody.trim()}
+              onClick={handleSaveQuickReply}
             >
-              {editingCanned ? 'Save Template' : 'Add Template'}
+              {editingQuickReply ? 'Save Template' : 'Add Template'}
             </Button>
           </>
         }
@@ -764,8 +764,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
           <FormField label="Template Title" required>
             <TextInput
-              value={cannedFormTitle}
-              onChange={e => setCannedFormTitle(e.target.value)}
+              value={quickReplyFormTitle}
+              onChange={e => setQuickReplyFormTitle(e.target.value)}
               placeholder="e.g. Acknowledge receipt"
             />
           </FormField>
@@ -773,8 +773,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 'var(--space-3)' }}>
             <FormField label="Category">
               <SelectInput
-                value={cannedFormCategory}
-                onChange={e => setCannedFormCategory(e.target.value as CannedResponseCategory)}
+                value={quickReplyFormCategory}
+                onChange={e => setQuickReplyFormCategory(e.target.value as QuickReplyCategory)}
               >
                 <option value="General">General</option>
                 <option value="Attendance">Attendance</option>
@@ -788,8 +788,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
             <FormField label="Reply Scope">
               <SelectInput
-                value={cannedFormScope}
-                onChange={e => setCannedFormScope(e.target.value as CannedResponseScope)}
+                value={quickReplyFormScope}
+                onChange={e => setQuickReplyFormScope(e.target.value as QuickReplyScope)}
               >
                 <option value="public">Public reply</option>
                 <option value="internal">Internal note</option>
@@ -799,8 +799,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
             <FormField label="Status">
               <SelectInput
-                value={cannedFormStatus}
-                onChange={e => setCannedFormStatus(e.target.value as 'Active' | 'Inactive')}
+                value={quickReplyFormStatus}
+                onChange={e => setQuickReplyFormStatus(e.target.value as 'Active' | 'Inactive')}
               >
                 <option value="Active">Active</option>
                 <option value="Inactive">Inactive</option>
@@ -814,8 +814,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             hint="Placeholders: {{requester}}, {{ticketId}}, {{agent}}"
           >
             <TextareaInput
-              value={cannedFormBody}
-              onChange={e => setCannedFormBody(e.target.value)}
+              value={quickReplyFormBody}
+              onChange={e => setQuickReplyFormBody(e.target.value)}
               rows={5}
               placeholder="Hi {{requester}}, we received your request..."
             />

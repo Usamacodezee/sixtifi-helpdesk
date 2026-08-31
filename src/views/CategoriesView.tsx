@@ -42,6 +42,7 @@ import {
   audienceLabel
 } from '../data/categoryTypes';
 import { getCompanyById, HELPDESK_COMPANIES } from '../data/companies';
+import { handlingTeamsForCompany } from '../data/helpdeskTeams';
 import {
   DirectoryGroup,
   DirectoryGroupKind,
@@ -225,7 +226,7 @@ export const CategoriesView: React.FC<CategoriesViewProps> = ({
       name: 'Attendance',
       description: 'Attendance and time tracking related requests',
       categoryAssignees: [ROLE_OPTIONS[2]],
-      assignedTeam: 'HR Support',
+      assignedTeam: 'Attendance Desk',
       totalTickets: 42,
       openTickets: 18,
       status: 'Active',
@@ -238,7 +239,7 @@ export const CategoriesView: React.FC<CategoriesViewProps> = ({
       companyId: 'co-acme',
       name: 'Leave',
       description: 'Leave and leave balance related requests',
-      assignedTeam: 'HR Support',
+      assignedTeam: 'Leave Desk',
       totalTickets: 28,
       openTickets: 10,
       status: 'Active',
@@ -310,7 +311,7 @@ export const CategoriesView: React.FC<CategoriesViewProps> = ({
       companyId: 'co-northwind',
       name: 'Fleet Support',
       description: 'Vehicle, route, and driver support requests',
-      assignedTeam: 'IT Support',
+      assignedTeam: 'Northwind Fleet Desk',
       totalTickets: 19,
       openTickets: 7,
       status: 'Active',
@@ -322,7 +323,7 @@ export const CategoriesView: React.FC<CategoriesViewProps> = ({
       companyId: 'co-northwind',
       name: 'Warehouse Ops',
       description: 'Floor, inventory, and shift coverage requests',
-      assignedTeam: 'HR Support',
+      assignedTeam: 'Northwind Ops Desk',
       totalTickets: 14,
       openTickets: 4,
       status: 'Active',
@@ -334,7 +335,7 @@ export const CategoriesView: React.FC<CategoriesViewProps> = ({
       companyId: 'co-contoso',
       name: 'Store Operations',
       description: 'POS, schedule, and store facility requests',
-      assignedTeam: 'Administration Support',
+      assignedTeam: 'Contoso People Ops',
       totalTickets: 22,
       openTickets: 9,
       status: 'Active',
@@ -346,7 +347,7 @@ export const CategoriesView: React.FC<CategoriesViewProps> = ({
       companyId: 'co-contoso',
       name: 'Retail HR',
       description: 'People policies and frontline HR for stores',
-      assignedTeam: 'HR Support',
+      assignedTeam: 'Contoso Retail HR',
       totalTickets: 8,
       openTickets: 3,
       status: 'Active',
@@ -367,6 +368,38 @@ export const CategoriesView: React.FC<CategoriesViewProps> = ({
 
   const selectedCategory =
     companyCategories.find(c => c.id === selectedCategoryId) || companyCategories[0];
+
+  const editingCategoryId = viewMode === 'edit' ? selectedCategoryId : null;
+
+  const handlingTeamOptions = useMemo(
+    () => handlingTeamsForCompany(formCompanyId),
+    [formCompanyId]
+  );
+
+  const teamsAssignedToOtherCategories = useMemo(
+    () =>
+      new Set(
+        categories
+          .filter(c => c.companyId === formCompanyId && c.id !== editingCategoryId)
+          .map(c => c.assignedTeam)
+      ),
+    [categories, formCompanyId, editingCategoryId]
+  );
+
+  const pickAvailableHandlingTeam = (
+    targetCompanyId: string,
+    excludeCategoryId?: string | null,
+    preferred?: string
+  ) => {
+    const taken = new Set(
+      categories
+        .filter(c => c.companyId === targetCompanyId && c.id !== excludeCategoryId)
+        .map(c => c.assignedTeam)
+    );
+    const options = handlingTeamsForCompany(targetCompanyId);
+    if (preferred && options.includes(preferred) && !taken.has(preferred)) return preferred;
+    return options.find(team => !taken.has(team)) || options[0] || '';
+  };
 
   const activeCount = companyCategories.filter(c => c.status === 'Active').length;
   const inactiveCount = companyCategories.filter(c => c.status === 'Inactive').length;
@@ -412,7 +445,7 @@ export const CategoriesView: React.FC<CategoriesViewProps> = ({
     setFormEscalateResponse(false);
     setFormEscalateResolution(false);
     setFormStatus('Active');
-    setFormDefaultTeam('HR Support');
+    setFormDefaultTeam(pickAvailableHandlingTeam(companyId));
     setFormNotifications({ ...DEFAULT_CATEGORY_NOTIFICATIONS });
   };
 
@@ -474,6 +507,14 @@ export const CategoriesView: React.FC<CategoriesViewProps> = ({
     }
     if (formAudience.type === 'groups' && formAudience.groupIds.length === 0) {
       onShowToast('warning', 'Audience incomplete', 'Select at least one group, or switch to Everyone.');
+      return;
+    }
+    if (!formDefaultTeam || teamsAssignedToOtherCategories.has(formDefaultTeam)) {
+      onShowToast(
+        'warning',
+        'Handling team unavailable',
+        'That team already handles another category. Pick a team without a category.'
+      );
       return;
     }
 
@@ -1074,13 +1115,21 @@ export const CategoriesView: React.FC<CategoriesViewProps> = ({
               <SelectInput
                 value={formCompanyId}
                 onChange={e => {
-                  setFormCompanyId(e.target.value);
+                  const nextCompanyId = e.target.value;
+                  setFormCompanyId(nextCompanyId);
                   setFormAudience(emptyAudience());
                   setFormCategoryAssignees([]);
                   setFormAudienceQuery('');
                   setFormGroupQueries(emptyGroupQueries());
                   setFormGroupDropdownOpen({});
                   setFormAssigneeQuery('');
+                  setFormDefaultTeam(
+                    pickAvailableHandlingTeam(
+                      nextCompanyId,
+                      viewMode === 'edit' ? selectedCategoryId : null,
+                      formDefaultTeam
+                    )
+                  );
                 }}
               >
                 {HELPDESK_COMPANIES.map(c => (
@@ -1405,15 +1454,22 @@ export const CategoriesView: React.FC<CategoriesViewProps> = ({
               <FormField
                 label="Handling team"
                 required
-                hint="One team owns this category and receives its tickets"
+                hint="Each team handles one category. Teams already assigned elsewhere are disabled."
               >
                 <SelectInput value={formDefaultTeam} onChange={e => setFormDefaultTeam(e.target.value)}>
-                  <option value="HR Support">HR Support</option>
-                  <option value="Payroll Support">Payroll Support</option>
-                  <option value="IT Support">IT Support</option>
-                  <option value="Administration Support">Administration Support</option>
-                  <option value="Northwind Ops Desk">Northwind Ops Desk</option>
-                  <option value="Contoso People Ops">Contoso People Ops</option>
+                  {handlingTeamOptions.length === 0 ? (
+                    <option value="">No teams for this company</option>
+                  ) : (
+                    handlingTeamOptions.map(teamName => {
+                      const isTaken = teamsAssignedToOtherCategories.has(teamName);
+                      return (
+                        <option key={teamName} value={teamName} disabled={isTaken}>
+                          {teamName}
+                          {isTaken ? ' (already has a category)' : ''}
+                        </option>
+                      );
+                    })
+                  )}
                 </SelectInput>
               </FormField>
               <FormField label="Status" hint="Inactive categories are hidden when raising a request">
@@ -1428,7 +1484,15 @@ export const CategoriesView: React.FC<CategoriesViewProps> = ({
               <Button variant="secondary" type="button" onClick={() => setViewMode('list')}>
                 Cancel
               </Button>
-              <Button variant="primary" type="submit" disabled={!formCategoryName.trim()}>
+              <Button
+                variant="primary"
+                type="submit"
+                disabled={
+                  !formCategoryName.trim() ||
+                  !formDefaultTeam ||
+                  teamsAssignedToOtherCategories.has(formDefaultTeam)
+                }
+              >
                 Save Category
               </Button>
             </div>
@@ -1450,7 +1514,7 @@ export const CategoriesView: React.FC<CategoriesViewProps> = ({
               }}
             >
               <div>
-                <strong>Handling team</strong> — one team owns this category.
+                <strong>Handling team</strong> — assign here; each team can own only one category.
               </div>
               <div>
                 <strong>Who can raise</strong> — everyone, selected people, or groups.

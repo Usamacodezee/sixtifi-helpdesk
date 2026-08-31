@@ -24,7 +24,8 @@ export interface HelpdeskTeam {
   description: string;
   membersCount: number;
   memberAvatars: string[];
-  categories: string[];
+  /** At most one category — assigned from the category form, not here */
+  category: string | null;
   openTickets: number;
   teamLead: string;
   status: 'Active' | 'Inactive';
@@ -75,7 +76,6 @@ export const TeamsView: React.FC<TeamsViewProps> = ({
   const [formTeamName, setFormTeamName] = useState('');
   const [formDescription, setFormDescription] = useState('');
   const [formTeamLead, setFormTeamLead] = useState('Priya Shah');
-  const [formCategories, setFormCategories] = useState<string[]>(['HR', 'Attendance', 'Leave']);
   const [formMembers, setFormMembers] = useState<string[]>(['Alex Rivera', 'Rahul Sharma', 'Elena Rostova', 'Priya Shah']);
   const [formStatus, setFormStatus] = useState<'Active' | 'Inactive'>('Active');
 
@@ -88,7 +88,7 @@ export const TeamsView: React.FC<TeamsViewProps> = ({
       description: 'Handles general HR and workforce-related employee requests',
       membersCount: 6,
       memberAvatars: ['PS', 'RS', 'ER', 'AR'],
-      categories: ['HR', 'Attendance', 'Leave'],
+      category: 'HR',
       openTickets: 18,
       teamLead: 'Priya Shah',
       status: 'Active',
@@ -97,13 +97,43 @@ export const TeamsView: React.FC<TeamsViewProps> = ({
       slaBreached: 1
     },
     {
+      id: 'team-attendance',
+      companyId: 'co-acme',
+      name: 'Attendance Desk',
+      description: 'Handles attendance and time tracking requests',
+      membersCount: 3,
+      memberAvatars: ['RS', 'AR'],
+      category: 'Attendance',
+      openTickets: 6,
+      teamLead: 'Rahul Sharma',
+      status: 'Active',
+      lastUpdated: 'Today',
+      slaAtRisk: 1,
+      slaBreached: 0
+    },
+    {
+      id: 'team-leave',
+      companyId: 'co-acme',
+      name: 'Leave Desk',
+      description: 'Handles leave and balance requests',
+      membersCount: 3,
+      memberAvatars: ['ER', 'PS'],
+      category: 'Leave',
+      openTickets: 5,
+      teamLead: 'Elena Rostova',
+      status: 'Active',
+      lastUpdated: 'Yesterday',
+      slaAtRisk: 0,
+      slaBreached: 0
+    },
+    {
       id: 'team-payroll',
       companyId: 'co-acme',
       name: 'Payroll Support',
       description: 'Handles payroll, tax, bonus and payslip related requests',
       membersCount: 4,
       memberAvatars: ['MC', 'RS', 'PS'],
-      categories: ['Payroll'],
+      category: 'Payroll',
       openTickets: 9,
       teamLead: 'Rahul Sharma',
       status: 'Active',
@@ -118,7 +148,7 @@ export const TeamsView: React.FC<TeamsViewProps> = ({
       description: 'Handles system, hardware and software access requests',
       membersCount: 5,
       memberAvatars: ['DM', 'MC', 'SJ'],
-      categories: ['IT'],
+      category: 'IT',
       openTickets: 12,
       teamLead: 'David Miller',
       status: 'Active',
@@ -133,7 +163,7 @@ export const TeamsView: React.FC<TeamsViewProps> = ({
       description: 'Handles facilities, transport and administrative requests',
       membersCount: 3,
       memberAvatars: ['EW', 'AR'],
-      categories: ['Administration'],
+      category: 'Administration',
       openTickets: 5,
       teamLead: 'Emma Wilson',
       status: 'Active',
@@ -142,13 +172,43 @@ export const TeamsView: React.FC<TeamsViewProps> = ({
       slaBreached: 0
     },
     {
+      id: 'team-employee-exp',
+      companyId: 'co-acme',
+      name: 'Employee Experience Desk',
+      description: 'General employee queries and onboarding support',
+      membersCount: 4,
+      memberAvatars: ['NP', 'AK'],
+      category: null,
+      openTickets: 2,
+      teamLead: 'Neha Patel',
+      status: 'Active',
+      lastUpdated: 'Today',
+      slaAtRisk: 0,
+      slaBreached: 0
+    },
+    {
+      id: 'team-workplace',
+      companyId: 'co-acme',
+      name: 'Workplace Services',
+      description: 'Office, transport, and workplace facility requests',
+      membersCount: 3,
+      memberAvatars: ['EW', 'MC'],
+      category: null,
+      openTickets: 1,
+      teamLead: 'Marcus Chen',
+      status: 'Active',
+      lastUpdated: 'Yesterday',
+      slaAtRisk: 0,
+      slaBreached: 0
+    },
+    {
       id: 'team-nw-ops',
       companyId: 'co-northwind',
       name: 'Northwind Ops Desk',
-      description: 'Logistics and fleet support for Northwind',
+      description: 'Warehouse and floor operations support',
       membersCount: 4,
       memberAvatars: ['NW', 'RS'],
-      categories: ['IT', 'Administration'],
+      category: 'Warehouse Ops',
       openTickets: 7,
       teamLead: 'Rahul Sharma',
       status: 'Active',
@@ -157,17 +217,47 @@ export const TeamsView: React.FC<TeamsViewProps> = ({
       slaBreached: 0
     },
     {
+      id: 'team-nw-fleet',
+      companyId: 'co-northwind',
+      name: 'Northwind Fleet Desk',
+      description: 'Fleet and driver support for Northwind',
+      membersCount: 3,
+      memberAvatars: ['JL', 'SO'],
+      category: 'Fleet Support',
+      openTickets: 5,
+      teamLead: 'Jordan Lee',
+      status: 'Active',
+      lastUpdated: 'Aug 18',
+      slaAtRisk: 0,
+      slaBreached: 0
+    },
+    {
       id: 'team-contoso-hr',
       companyId: 'co-contoso',
       name: 'Contoso People Ops',
-      description: 'Retail HR and attendance support',
+      description: 'Store operations and frontline support',
       membersCount: 3,
       memberAvatars: ['CT', 'PS'],
-      categories: ['HR', 'Attendance', 'Leave'],
+      category: 'Store Operations',
       openTickets: 4,
       teamLead: 'Priya Shah',
       status: 'Active',
       lastUpdated: 'Aug 19',
+      slaAtRisk: 0,
+      slaBreached: 0
+    },
+    {
+      id: 'team-contoso-retail',
+      companyId: 'co-contoso',
+      name: 'Contoso Retail HR',
+      description: 'Retail people policies and HR support',
+      membersCount: 2,
+      memberAvatars: ['MC', 'DP'],
+      category: 'Retail HR',
+      openTickets: 3,
+      teamLead: 'Mia Chen',
+      status: 'Active',
+      lastUpdated: 'Aug 17',
       slaAtRisk: 0,
       slaBreached: 0
     }
@@ -192,7 +282,9 @@ export const TeamsView: React.FC<TeamsViewProps> = ({
       t.teamLead.toLowerCase().includes(searchQuery.toLowerCase());
 
     const matchesStatus = statusFilter === 'all' || t.status.toLowerCase() === statusFilter;
-    const matchesCategory = categoryFilter === 'all' || t.categories.some(c => c.toLowerCase() === categoryFilter);
+    const matchesCategory =
+      categoryFilter === 'all' ||
+      (t.category !== null && t.category.toLowerCase() === categoryFilter);
 
     return matchesSearch && matchesStatus && matchesCategory;
   });
@@ -205,7 +297,6 @@ export const TeamsView: React.FC<TeamsViewProps> = ({
     setFormTeamName('');
     setFormDescription('');
     setFormTeamLead('Priya Shah');
-    setFormCategories(['HR', 'Attendance']);
     setFormMembers(['Alex Rivera', 'Priya Shah']);
     setFormStatus('Active');
     setViewMode('create');
@@ -218,60 +309,17 @@ export const TeamsView: React.FC<TeamsViewProps> = ({
     setFormTeamName(team.name);
     setFormDescription(team.description);
     setFormTeamLead(team.teamLead);
-    setFormCategories(team.categories);
     setFormStatus(team.status);
     setViewMode('edit');
   };
 
-  const CATEGORY_OPTIONS = ['Attendance', 'Leave', 'Payroll', 'HR', 'IT', 'Administration'];
-
-  /** Another active team in the same company that already owns this category. */
-  const getCategoryOwner = (categoryName: string, excludeTeamId?: string) =>
-    teams.find(
-      t =>
-        t.companyId === formCompanyId &&
-        t.status === 'Active' &&
-        t.id !== excludeTeamId &&
-        t.categories.includes(categoryName)
-    );
-
-  const handleToggleCategory = (cat: string, checked: boolean) => {
-    if (!checked) {
-      setFormCategories(formCategories.filter(c => c !== cat));
-      return;
-    }
-
-    const owner = getCategoryOwner(cat, viewMode === 'edit' ? selectedTeamId : undefined);
-    if (owner) {
-      onShowToast(
-        'warning',
-        'Category already assigned',
-        `"${cat}" is handled by ${owner.name}. Each category can belong to only one team. Saving will move it here.`
-      );
-    }
-    if (!formCategories.includes(cat)) setFormCategories([...formCategories, cat]);
-  };
-
-  // Submit Create or Edit Team — strip claimed categories from other teams in the same company
+  // Submit Create or Edit Team
   const handleSaveTeamForm = (e: React.FormEvent) => {
     e.preventDefault();
     if (!formTeamName.trim()) return;
-    if (formCategories.length === 0) {
-      onShowToast('warning', 'Categories required', 'Assign at least one category. Each category can have only one handling team.');
-      return;
-    }
 
     const teamId = viewMode === 'create' ? `team-${Date.now()}` : selectedTeamId;
     const teamName = formTeamName.trim();
-    const claimed = new Set(formCategories);
-
-    const reassignOthers = (list: HelpdeskTeam[]) =>
-      list.map(t => {
-        if (t.companyId !== formCompanyId || t.id === teamId) return t;
-        const nextCats = t.categories.filter(c => !claimed.has(c));
-        if (nextCats.length === t.categories.length) return t;
-        return { ...t, categories: nextCats, lastUpdated: 'Just now' };
-      });
 
     if (viewMode === 'create') {
       const newTeam: HelpdeskTeam = {
@@ -281,42 +329,31 @@ export const TeamsView: React.FC<TeamsViewProps> = ({
         description: formDescription.trim() || 'Custom Helpdesk support team',
         membersCount: formMembers.length,
         memberAvatars: ['AR', 'PS'],
-        categories: formCategories,
+        category: null,
         openTickets: 0,
         teamLead: formTeamLead,
         status: formStatus,
         lastUpdated: 'Just now'
       };
-      setTeams(prev => reassignOthers([...prev, newTeam]));
-      onShowToast(
-        'success',
-        'Team Created',
-        `"${newTeam.name}" is the exclusive handling team for: ${formCategories.join(', ')}.`
-      );
+      setTeams(prev => [...prev, newTeam]);
+      onShowToast('success', 'Team Created', `"${newTeam.name}" created. Assign a category from Categories.`);
     } else {
       setTeams(prev =>
-        reassignOthers(
-          prev.map(t =>
-            t.id === selectedTeamId
-              ? {
-                  ...t,
-                  companyId: formCompanyId,
-                  name: teamName,
-                  description: formDescription.trim(),
-                  teamLead: formTeamLead,
-                  categories: formCategories,
-                  status: formStatus,
-                  lastUpdated: 'Just now'
-                }
-              : t
-          )
+        prev.map(t =>
+          t.id === selectedTeamId
+            ? {
+                ...t,
+                companyId: formCompanyId,
+                name: teamName,
+                description: formDescription.trim(),
+                teamLead: formTeamLead,
+                status: formStatus,
+                lastUpdated: 'Just now'
+              }
+            : t
         )
       );
-      onShowToast(
-        'success',
-        'Team Updated',
-        `"${teamName}" exclusively handles: ${formCategories.join(', ')}.`
-      );
+      onShowToast('success', 'Team Updated', `"${teamName}" saved.`);
     }
 
     setViewMode('list');
@@ -394,16 +431,12 @@ export const TeamsView: React.FC<TeamsViewProps> = ({
       )
     },
     {
-      key: 'categories',
-      header: 'Categories Handled',
+      key: 'category',
+      header: 'Category',
       render: item => (
-        <div className="categories-badges-group">
-          {item.categories.map(c => (
-            <span key={c} className="category-tag-pill">
-              {c}
-            </span>
-          ))}
-        </div>
+        <span className="category-tag-pill">
+          {item.category || 'Not assigned'}
+        </span>
       )
     },
     {
@@ -588,7 +621,7 @@ export const TeamsView: React.FC<TeamsViewProps> = ({
             { label: viewMode === 'create' ? 'Add Team' : 'Edit Team' }
           ]}
           title={viewMode === 'create' ? 'Create Helpdesk Team' : `Edit Team — ${formTeamName}`}
-          subtitle="Configure company, support team details, team leads, members and request categories."
+          subtitle="Configure company, support team details, team leads, and members."
         />
 
         <div className="team-form-layout">
@@ -647,36 +680,6 @@ export const TeamsView: React.FC<TeamsViewProps> = ({
               </div>
             </FormField>
 
-            <FormField
-              label="Categories Handled"
-              required
-              hint="One category → one team only. Claiming a category moves it away from any other team in this company."
-            >
-              <div className="team-category-exclusive-grid">
-                {CATEGORY_OPTIONS.map(cat => {
-                  const owner = getCategoryOwner(cat, viewMode === 'edit' ? selectedTeamId : undefined);
-                  const checked = formCategories.includes(cat);
-                  return (
-                    <label
-                      key={cat}
-                      className={`team-category-option ${checked ? 'is-selected' : ''} ${owner && !checked ? 'is-owned' : ''}`}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={checked}
-                        onChange={e => handleToggleCategory(cat, e.target.checked)}
-                      />
-                      <span className="team-category-option-label">{cat}</span>
-                      {owner && !checked && (
-                        <span className="team-category-owner">Owned by {owner.name}</span>
-                      )}
-                      {checked && <span className="team-category-owner is-mine">Exclusive to this team</span>}
-                    </label>
-                  );
-                })}
-              </div>
-            </FormField>
-
             <FormField label="Status">
               <SelectInput value={formStatus} onChange={e => setFormStatus(e.target.value as 'Active' | 'Inactive')} style={{ width: '180px' }}>
                 <option value="Active">Active</option>
@@ -701,13 +704,13 @@ export const TeamsView: React.FC<TeamsViewProps> = ({
 
             <div style={{ fontSize: '12px', color: 'var(--text-secondary)', display: 'flex', flexDirection: 'column', gap: '12px', lineHeight: 1.4 }}>
               <div>
-                <strong>Exclusive ownership:</strong> Each category is handled by exactly one team. Saving moves selected categories to this team and removes them from others.
+                <strong>Category assignment:</strong> Each team handles at most one category. Assign the handling team from the category form.
               </div>
               <div>
-                <strong>Auto Routing:</strong> New tickets in these categories route only to this team.
+                <strong>Auto routing:</strong> New tickets in a category route to that category&apos;s handling team.
               </div>
               <div>
-                <strong>Inactive Teams:</strong> Inactive teams do not receive new auto-assigned tickets.
+                <strong>Inactive teams:</strong> Inactive teams do not receive new auto-assigned tickets.
               </div>
             </div>
           </div>
@@ -779,7 +782,7 @@ export const TeamsView: React.FC<TeamsViewProps> = ({
             Members ({selectedTeam.membersCount})
           </button>
           <button className={`team-tab-btn ${activeDetailTab === 'categories' ? 'is-active' : ''}`} onClick={() => setActiveDetailTab('categories')}>
-            Categories ({selectedTeam.categories.length})
+            Category
           </button>
           <button className={`team-tab-btn ${activeDetailTab === 'tickets' ? 'is-active' : ''}`} onClick={() => onNavigateToAllTicketsWithFilter(selectedTeam.name)}>
             Tickets ({selectedTeam.openTickets})
@@ -802,8 +805,8 @@ export const TeamsView: React.FC<TeamsViewProps> = ({
                   <span className="meta-value">{selectedTeam.teamLead}</span>
                 </div>
                 <div className="meta-row-item">
-                  <span className="meta-label">Handled Categories</span>
-                  <span className="meta-value">{selectedTeam.categories.join(', ')}</span>
+                  <span className="meta-label">Handled Category</span>
+                  <span className="meta-value">{selectedTeam.category || 'Not assigned — set from Categories'}</span>
                 </div>
                 <div className="meta-row-item">
                   <span className="meta-label">Total Assigned Members</span>
@@ -831,14 +834,17 @@ export const TeamsView: React.FC<TeamsViewProps> = ({
         {activeDetailTab === 'categories' && (
           <div className="team-detail-content-panel">
             <div className="sidebar-info-card">
-              <h3 className="text-h3">Auto-Routed Request Categories</h3>
+              <h3 className="text-h3">Handled category</h3>
               <div style={{ display: 'flex', gap: '8px', marginTop: '12px' }}>
-                {selectedTeam.categories.map(c => (
-                  <span key={c} className="category-tag-pill" style={{ padding: '6px 14px', fontSize: '13px', fontWeight: 600 }}>
-                    {c}
-                  </span>
-                ))}
+                <span className="category-tag-pill" style={{ padding: '6px 14px', fontSize: '13px', fontWeight: 600 }}>
+                  {selectedTeam.category || 'Not assigned'}
+                </span>
               </div>
+              {!selectedTeam.category && (
+                <p className="text-caption" style={{ marginTop: 12, color: 'var(--text-secondary)' }}>
+                  Assign this team as the handling team when creating or editing a category.
+                </p>
+              )}
             </div>
           </div>
         )}
@@ -849,7 +855,7 @@ export const TeamsView: React.FC<TeamsViewProps> = ({
               <h3 className="text-h3">Team Configuration History</h3>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '12px', fontSize: '12px' }}>
                 <div>• <strong>Team Lead Assigned:</strong> Priya Shah appointed as Team Lead (Aug 01, 2026)</div>
-                <div>• <strong>Category Added:</strong> Attendance and Leave categories auto-routed (Aug 05, 2026)</div>
+                <div>• <strong>Category linked:</strong> Handling team set from Categories (Aug 05, 2026)</div>
                 <div>• <strong>Member Added:</strong> Rahul Sharma added to HR Support team (Aug 10, 2026)</div>
               </div>
             </div>

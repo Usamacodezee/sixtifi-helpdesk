@@ -1,8 +1,8 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { PageHeader } from '../components/ui/PageHeader';
 import { Button } from '../components/ui/Button';
-import { PriorityBadge, TicketPriority } from '../components/ui/Badge';
-import { SelectInput, FormField, TextInput } from '../components/ui/FormControls';
+import { PriorityBadge } from '../components/ui/Badge';
+import { SelectInput, FormField, TextInput, TextareaInput } from '../components/ui/FormControls';
 import { Modal } from '../components/ui/Modal';
 import {
   Save,
@@ -12,7 +12,9 @@ import {
   Edit,
   History,
   User,
-  Info
+  Info,
+  GitBranch,
+  Eye
 } from 'lucide-react';
 import {
   SLA_HOURS_UPDATED_EVENT,
@@ -22,154 +24,60 @@ import {
   SlaHoursMode
 } from '../data/slaHoursSettings';
 import { getCompanyById, HELPDESK_COMPANIES } from '../data/companies';
-import { DirectoryPerson, employeesForCompany } from '../data/directory';
+import { employeesForCompany } from '../data/directory';
+import {
+  EscalationLevel,
+  EscalationNotifyKind,
+  SlaConfigChange,
+  SlaEscalationSnapshot,
+  SlaEscalationVersion,
+  SlaPolicyRule,
+  SlaTimeUnit,
+  THRESHOLD_OPTIONS,
+  formatSlaTarget,
+  getActiveSlaVersion,
+  getSlaEscalationState,
+  parseThresholdPercent,
+  pickValidCriticalThreshold,
+  publishSlaEscalationVersion,
+  saveSlaEscalationDraft,
+  snapshotsEqual,
+  syncEscalationTriggers,
+  getCriticalThresholdOptions
+} from '../data/slaEscalationConfig';
 import './SlaEscalationView.css';
 
 const SLA_ADMIN_ACTOR = 'Priya Shah (Helpdesk Admin)';
 
-const formatConfigTimestamp = () => {
-  const now = new Date();
-  return now.toLocaleString('en-IN', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-    hour12: true
-  });
-};
-
-export type SlaTimeUnit = 'Minutes' | 'Hours' | 'Days';
-
-export interface SlaPolicyRule {
-  id: string;
-  priority: TicketPriority;
-  firstReplyValue: number;
-  firstReplyUnit: SlaTimeUnit;
-  resolveValue: number;
-  resolveUnit: SlaTimeUnit;
-}
-
-function formatSlaTarget(value: number, unit: SlaTimeUnit): string {
-  const label = value === 1 ? unit.replace(/s$/, '') : unit;
-  return `${value} ${label}`;
-}
-
-export type EscalationNotifyKind = 'assignee' | 'team-lead' | 'employee';
-
-export interface EscalationLevel {
-  id: string;
-  level: 1 | 2 | 3;
-  trigger: string;
-  /** Who receives this escalation */
-  notifyKind: EscalationNotifyKind;
-  /** Set when notifyKind === 'employee' */
-  notifyPersonId: string;
-  notifyPersonName: string;
-  channel: 'In-app' | 'Email' | 'In-app + Email';
-}
+export type { SlaTimeUnit, SlaPolicyRule, EscalationNotifyKind, EscalationLevel };
 
 export interface SlaException {
   id: string;
-  priority: TicketPriority;
+  priority: import('../components/ui/Badge').TicketPriority;
   category: string;
   customResolutionTarget: string;
   status: 'Active' | 'Inactive';
-}
-
-export interface SlaConfigChange {
-  id: string;
-  summary: string;
-  detail: string;
-  changedBy: string;
-  changedAt: string;
-}
-
-const THRESHOLD_OPTIONS = ['50%', '60%', '70%', '75%', '80%', '85%', '90%', '95%', '99%'] as const;
-
-function parseThresholdPercent(value: string): number {
-  const n = parseInt(value.replace('%', ''), 10);
-  return Number.isFinite(n) ? Math.min(99, Math.max(1, n)) : 80;
-}
-
-function getCriticalThresholdOptions(atRiskThreshold: string): string[] {
-  const atRisk = parseThresholdPercent(atRiskThreshold);
-  return THRESHOLD_OPTIONS.filter(opt => parseThresholdPercent(opt) > atRisk);
-}
-
-function pickValidCriticalThreshold(atRiskThreshold: string, currentCritical: string): string {
-  const options = getCriticalThresholdOptions(atRiskThreshold);
-  if (options.includes(currentCritical)) return currentCritical;
-  return options[options.length - 1] || '95%';
-}
-
-function buildEscalationTriggers(
-  atRiskThreshold: string,
-  criticalThreshold: string
-): Record<1 | 2 | 3, string> {
-  const atRisk = parseThresholdPercent(atRiskThreshold);
-  const critical = parseThresholdPercent(criticalThreshold);
-  return {
-    1: `${atRisk}% SLA At Risk`,
-    2: `${critical}% SLA Critical`,
-    3: 'SLA Breached (100%)'
-  };
-}
-
-function defaultEscalationLevels(
-  people: DirectoryPerson[],
-  atRiskThreshold: string,
-  criticalThreshold: string
-): EscalationLevel[] {
-  const triggers = buildEscalationTriggers(atRiskThreshold, criticalThreshold);
-  const first = people[0];
-  return [
-    {
-      id: 'esc-1',
-      level: 1,
-      trigger: triggers[1],
-      notifyKind: 'assignee',
-      notifyPersonId: '',
-      notifyPersonName: '',
-      channel: 'In-app + Email'
-    },
-    {
-      id: 'esc-2',
-      level: 2,
-      trigger: triggers[2],
-      notifyKind: 'team-lead',
-      notifyPersonId: '',
-      notifyPersonName: '',
-      channel: 'In-app + Email'
-    },
-    {
-      id: 'esc-3',
-      level: 3,
-      trigger: triggers[3],
-      notifyKind: first ? 'employee' : 'assignee',
-      notifyPersonId: first?.id || '',
-      notifyPersonName: first?.name || '',
-      channel: 'In-app + Email'
-    }
-  ];
-}
-
-function syncEscalationTriggers(
-  levels: EscalationLevel[],
-  atRiskThreshold: string,
-  criticalThreshold: string
-): EscalationLevel[] {
-  const triggers = buildEscalationTriggers(atRiskThreshold, criticalThreshold);
-  return levels.map(level => ({
-    ...level,
-    trigger: triggers[level.level]
-  }));
 }
 
 function notifyDisplayLabel(esc: EscalationLevel): string {
   if (esc.notifyKind === 'assignee') return 'Assignee';
   if (esc.notifyKind === 'team-lead') return 'Team Lead';
   return esc.notifyPersonName || 'Employee';
+}
+
+function applySnapshotToState(
+  snapshot: SlaEscalationSnapshot,
+  setters: {
+    setSlaRules: React.Dispatch<React.SetStateAction<SlaPolicyRule[]>>;
+    setWarningThreshold: React.Dispatch<React.SetStateAction<string>>;
+    setCriticalThreshold: React.Dispatch<React.SetStateAction<string>>;
+    setEscalationLevels: React.Dispatch<React.SetStateAction<EscalationLevel[]>>;
+  }
+) {
+  setters.setSlaRules(snapshot.slaRules);
+  setters.setWarningThreshold(snapshot.warningThreshold);
+  setters.setCriticalThreshold(snapshot.criticalThreshold);
+  setters.setEscalationLevels(snapshot.escalationLevels);
 }
 
 export interface SlaEscalationViewProps {
@@ -187,6 +95,41 @@ export const SlaEscalationView: React.FC<SlaEscalationViewProps> = ({
   const companyPeople = useMemo(() => employeesForCompany(companyId), [companyId]);
 
   const [slaHoursMode, setSlaHoursMode] = useState<SlaHoursMode>(() => getSlaHoursMode(companyId));
+  const [slaRules, setSlaRules] = useState<SlaPolicyRule[]>([]);
+  const [warningThreshold, setWarningThreshold] = useState('80%');
+  const [criticalThreshold, setCriticalThreshold] = useState('90%');
+  const [escalationLevels, setEscalationLevels] = useState<EscalationLevel[]>([]);
+  const [configChangeLog, setConfigChangeLog] = useState<SlaConfigChange[]>([]);
+  const [versions, setVersions] = useState<SlaEscalationVersion[]>([]);
+  const [activeVersion, setActiveVersion] = useState<SlaEscalationVersion | undefined>();
+  const [viewingVersion, setViewingVersion] = useState<SlaEscalationVersion | null>(null);
+  const [publishNote, setPublishNote] = useState('');
+  const [publishModalOpen, setPublishModalOpen] = useState(false);
+
+  const hydratedRef = useRef(false);
+  const skipPersistRef = useRef(false);
+
+  const loadCompanyState = useCallback((targetCompanyId: string) => {
+    const state = getSlaEscalationState(targetCompanyId);
+    skipPersistRef.current = true;
+    applySnapshotToState(state.draft, {
+      setSlaRules,
+      setWarningThreshold,
+      setCriticalThreshold,
+      setEscalationLevels
+    });
+    setConfigChangeLog(state.configChangeLog);
+    setVersions(state.versions);
+    setActiveVersion(getActiveSlaVersion(targetCompanyId));
+    hydratedRef.current = true;
+    window.setTimeout(() => {
+      skipPersistRef.current = false;
+    }, 0);
+  }, []);
+
+  useEffect(() => {
+    loadCompanyState(companyId);
+  }, [companyId, loadCompanyState]);
 
   useEffect(() => {
     const refresh = () => setSlaHoursMode(getSlaHoursMode(companyId));
@@ -195,44 +138,35 @@ export const SlaEscalationView: React.FC<SlaEscalationViewProps> = ({
     return () => window.removeEventListener(SLA_HOURS_UPDATED_EVENT, refresh);
   }, [companyId]);
 
-  // Default SLA Policies — warning thresholds are global (SLA Defaults), not per priority
-  const [slaRules, setSlaRules] = useState<SlaPolicyRule[]>([
-    { id: 'sla-urgent', priority: 'Urgent', firstReplyValue: 1, firstReplyUnit: 'Hours', resolveValue: 4, resolveUnit: 'Hours' },
-    { id: 'sla-high', priority: 'High', firstReplyValue: 4, firstReplyUnit: 'Hours', resolveValue: 1, resolveUnit: 'Days' },
-    { id: 'sla-medium', priority: 'Medium', firstReplyValue: 8, firstReplyUnit: 'Hours', resolveValue: 2, resolveUnit: 'Days' },
-    { id: 'sla-low', priority: 'Low', firstReplyValue: 12, firstReplyUnit: 'Hours', resolveValue: 4, resolveUnit: 'Days' }
-  ]);
+  const currentSnapshot = useMemo<SlaEscalationSnapshot>(
+    () => ({
+      warningThreshold,
+      criticalThreshold,
+      slaRules,
+      escalationLevels
+    }),
+    [warningThreshold, criticalThreshold, slaRules, escalationLevels]
+  );
 
-  const [warningThreshold, setWarningThreshold] = useState('80%');
-  const [criticalThreshold, setCriticalThreshold] = useState('90%');
+  const hasUnpublishedChanges = useMemo(() => {
+    if (!activeVersion) return false;
+    return !snapshotsEqual(currentSnapshot, activeVersion.snapshot);
+  }, [activeVersion, currentSnapshot]);
+
+  const supersededWithOpenTickets = useMemo(
+    () => versions.filter(v => v.status === 'superseded' && v.openTicketsOnVersion > 0),
+    [versions]
+  );
+
+  useEffect(() => {
+    if (!hydratedRef.current || skipPersistRef.current) return;
+    saveSlaEscalationDraft(companyId, currentSnapshot);
+  }, [companyId, currentSnapshot]);
 
   const criticalThresholdOptions = useMemo(
     () => getCriticalThresholdOptions(warningThreshold),
     [warningThreshold]
   );
-
-  // Fixed escalation levels (cannot add/remove) — enable/disable is per category
-  const [escalationLevels, setEscalationLevels] = useState<EscalationLevel[]>(() =>
-    defaultEscalationLevels(employeesForCompany(companyId), '80%', '90%')
-  );
-
-  useEffect(() => {
-    setEscalationLevels(prev =>
-      syncEscalationTriggers(
-        defaultEscalationLevels(employeesForCompany(companyId), warningThreshold, criticalThreshold).map(
-          (defaults, index) => ({
-            ...defaults,
-            notifyKind: prev[index]?.notifyKind ?? defaults.notifyKind,
-            notifyPersonId: prev[index]?.notifyPersonId ?? defaults.notifyPersonId,
-            notifyPersonName: prev[index]?.notifyPersonName ?? defaults.notifyPersonName,
-            channel: prev[index]?.channel ?? defaults.channel
-          })
-        ),
-        warningThreshold,
-        criticalThreshold
-      )
-    );
-  }, [companyId]);
 
   const applyThresholdSync = (atRisk: string, critical: string) => {
     setEscalationLevels(prev => syncEscalationTriggers(prev, atRisk, critical));
@@ -262,42 +196,16 @@ export const SlaEscalationView: React.FC<SlaEscalationViewProps> = ({
     applyThresholdSync(warningThreshold, next);
   };
 
-  // Admin config change history (who changed SLA targets, when)
-  const [configChangeLog, setConfigChangeLog] = useState<SlaConfigChange[]>([
-    {
-      id: 'cfg-1',
-      summary: 'Updated High priority SLA targets',
-      detail: 'First reply: 4 Hours · Resolve: 1 Day',
-      changedBy: 'Priya Shah (Helpdesk Admin)',
-      changedAt: '22 Aug 2026, 2:14 PM'
-    },
-    {
-      id: 'cfg-2',
-      summary: 'Updated Level 3 escalation notify target',
-      detail: 'Trigger: SLA Breached · Notify: Employee',
-      changedBy: 'Rahul Sharma (Team Lead)',
-      changedAt: '18 Aug 2026, 11:05 AM'
-    },
-    {
-      id: 'cfg-3',
-      summary: 'Published default SLA policy pack',
-      detail: 'Urgent / High / Medium / Low priorities activated for company calendar (IST)',
-      changedBy: 'Elena Rostova (HR Admin)',
-      changedAt: '12 Aug 2026, 9:40 AM'
-    }
-  ]);
-
-  const appendConfigChange = (summary: string, detail: string) => {
-    setConfigChangeLog(prev => [
-      {
-        id: `cfg-${Date.now()}`,
-        summary,
-        detail,
-        changedBy: SLA_ADMIN_ACTOR,
-        changedAt: formatConfigTimestamp()
-      },
-      ...prev
-    ]);
+  const handlePublishVersion = () => {
+    const version = publishSlaEscalationVersion(companyId, SLA_ADMIN_ACTOR, publishNote);
+    setPublishNote('');
+    setPublishModalOpen(false);
+    loadCompanyState(companyId);
+    onShowToast(
+      'success',
+      'New version published',
+      `${version.label} is now active. Open tickets keep their existing SLA version until closed.`
+    );
   };
 
   const [editingRule, setEditingRule] = useState<SlaPolicyRule | null>(null);
@@ -329,13 +237,8 @@ export const SlaEscalationView: React.FC<SlaEscalationViewProps> = ({
       resolveUnit: editResolveUnit
     });
 
-    appendConfigChange(
-      `Updated ${editingRule.priority} priority SLA targets`,
-      `First reply: ${formatSlaTarget(editFirstReplyValue, editFirstReplyUnit)} · Resolve: ${formatSlaTarget(editResolveValue, editResolveUnit)}`
-    );
-
     setEditingRule(null);
-    onShowToast('success', 'SLA Target Updated', `SLA targets updated for ${editingRule.priority} priority.`);
+    onShowToast('success', 'Draft updated', `SLA targets updated for ${editingRule.priority} priority. Publish to apply to new tickets.`);
   };
 
   const handleOpenEditEscalation = (esc: EscalationLevel) => {
@@ -381,12 +284,8 @@ export const SlaEscalationView: React.FC<SlaEscalationViewProps> = ({
           ? 'Team Lead'
           : notifyPersonName;
 
-    appendConfigChange(
-      `Updated Level ${editingEscalation.level} notify target`,
-      `Trigger: ${editingEscalation.trigger} · Notify: ${label} · Channel: ${editEscChannel}`
-    );
     setEditingEscalation(null);
-    onShowToast('success', 'Escalation Updated', `Level ${editingEscalation.level} now notifies ${label}.`);
+    onShowToast('success', 'Draft updated', `Level ${editingEscalation.level} now notifies ${label}. Publish to apply to new tickets.`);
   };
 
   return (
@@ -418,24 +317,39 @@ export const SlaEscalationView: React.FC<SlaEscalationViewProps> = ({
             <Button
               variant="primary"
               leftIcon={<Save size={16} />}
-              onClick={() => {
-                appendConfigChange(
-                  'Published SLA configuration changes',
-                  `Company: ${company.name} · Hours mode: ${getSlaHoursModeLabel(slaHoursMode)} · At risk: ${warningThreshold} · Critical: ${criticalThreshold} · Targets: ${slaRules
-                    .map(
-                      r =>
-                        `${r.priority} ${formatSlaTarget(r.firstReplyValue, r.firstReplyUnit)} / ${formatSlaTarget(r.resolveValue, r.resolveUnit)}`
-                    )
-                    .join('; ')}`
-                );
-                onShowToast('success', 'Changes Saved', `SLA configuration saved for ${company.name}.`);
-              }}
+              disabled={!hasUnpublishedChanges}
+              onClick={() => setPublishModalOpen(true)}
             >
-              Save Changes
+              Publish new version
             </Button>
           </div>
         }
       />
+
+      <div className={`sla-version-banner${hasUnpublishedChanges ? ' has-draft' : ''}`}>
+        <div className="sla-version-banner-main">
+          <GitBranch size={18} className="sla-version-banner-icon" />
+          <div>
+            <div className="sla-version-banner-title">
+              Active version: {activeVersion?.label ?? '—'}
+              {hasUnpublishedChanges && <span className="sla-version-draft-badge">Unpublished draft</span>}
+            </div>
+            <p className="sla-version-banner-text">
+              Open tickets keep the SLA version they were created under until closed. New tickets use the active
+              published version after you publish.
+            </p>
+          </div>
+        </div>
+        {supersededWithOpenTickets.length > 0 && (
+          <div className="sla-version-open-tickets">
+            {supersededWithOpenTickets.map(v => (
+              <span key={v.id} className="sla-version-open-ticket-pill">
+                {v.openTicketsOnVersion} open on {v.label}
+              </span>
+            ))}
+          </div>
+        )}
+      </div>
 
       {/* SECTION 1 — SLA OVERVIEW (4 KPI Cards) */}
       <div className="sla-kpi-grid">
@@ -716,6 +630,56 @@ export const SlaEscalationView: React.FC<SlaEscalationViewProps> = ({
         </div>
       </div>
 
+      {/* SECTION — VERSION HISTORY */}
+      <div className="sla-config-card">
+        <div className="sla-card-header">
+          <div>
+            <div className="sla-card-title" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <GitBranch size={18} style={{ color: 'var(--color-primary-600)' }} />
+              Version history
+            </div>
+            <div className="sla-card-subtitle">
+              Published SLA & escalation snapshots. Older versions remain in effect for open tickets.
+            </div>
+          </div>
+        </div>
+
+        <div className="sla-version-history-list">
+          {[...versions].reverse().map(version => (
+            <div key={version.id} className="sla-version-history-item">
+              <div className="sla-version-history-main">
+                <div className="sla-version-history-title-row">
+                  <span className="sla-version-history-label">{version.label}</span>
+                  <span className={`sla-version-status-badge is-${version.status}`}>
+                    {version.status === 'active' ? 'Active' : 'Superseded'}
+                  </span>
+                </div>
+                {version.changeNote && (
+                  <span className="sla-version-history-note">{version.changeNote}</span>
+                )}
+                <span className="sla-version-history-detail">
+                  At risk {version.snapshot.warningThreshold} · Critical {version.snapshot.criticalThreshold}
+                  {version.openTicketsOnVersion > 0 && version.status === 'superseded'
+                    ? ` · ${version.openTicketsOnVersion} open tickets still on this version`
+                    : ''}
+                </span>
+              </div>
+              <div className="sla-version-history-actions">
+                <span className="sla-config-history-time">{version.publishedAt}</span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  leftIcon={<Eye size={13} />}
+                  onClick={() => setViewingVersion(version)}
+                >
+                  View
+                </Button>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
       {/* SECTION — ADMIN CONFIG CHANGE HISTORY */}
       <div className="sla-config-card">
         <div className="sla-card-header">
@@ -869,6 +833,80 @@ export const SlaEscalationView: React.FC<SlaEscalationViewProps> = ({
             </SelectInput>
           </FormField>
         </div>
+      </Modal>
+
+      <Modal
+        isOpen={publishModalOpen}
+        onClose={() => setPublishModalOpen(false)}
+        title="Publish new SLA version"
+        subtitle="Creates a new active version for new tickets. Open tickets keep their current version."
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setPublishModalOpen(false)}>Cancel</Button>
+            <Button variant="primary" onClick={handlePublishVersion}>Publish version</Button>
+          </>
+        }
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
+          <FormField label="Change note (optional)" hint="Shown in version history for audit">
+            <TextareaInput
+              value={publishNote}
+              onChange={e => setPublishNote(e.target.value)}
+              placeholder="e.g. Tightened High priority first-reply target"
+              rows={3}
+            />
+          </FormField>
+          <p style={{ margin: 0, fontSize: '12px', color: 'var(--text-secondary)', lineHeight: 1.45 }}>
+            Publishing will supersede <strong>{activeVersion?.label}</strong>.{' '}
+            {supersededWithOpenTickets.reduce((sum, v) => sum + v.openTicketsOnVersion, 0) +
+              (activeVersion?.openTicketsOnVersion ?? 96)}{' '}
+            open tickets will continue using their assigned version.
+          </p>
+        </div>
+      </Modal>
+
+      <Modal
+        isOpen={!!viewingVersion}
+        onClose={() => setViewingVersion(null)}
+        title={viewingVersion ? `View ${viewingVersion.label}` : 'View version'}
+        subtitle="Read-only snapshot — open tickets on this version use these rules."
+        footer={
+          <Button variant="secondary" onClick={() => setViewingVersion(null)}>Close</Button>
+        }
+      >
+        {viewingVersion && (
+          <div className="sla-version-view-panel">
+            <div className="sla-version-view-meta">
+              <span>Published {viewingVersion.publishedAt}</span>
+              <span>by {viewingVersion.publishedBy}</span>
+            </div>
+            <div className="sla-version-view-thresholds">
+              <span>At risk: {viewingVersion.snapshot.warningThreshold}</span>
+              <span>Critical: {viewingVersion.snapshot.criticalThreshold}</span>
+            </div>
+            <div className="sla-priority-list">
+              {viewingVersion.snapshot.slaRules.map(rule => (
+                <div key={rule.id} className="sla-priority-list-item">
+                  <div className="sla-priority-col-priority">
+                    <PriorityBadge priority={rule.priority} />
+                  </div>
+                  <div className="sla-priority-col-metric">
+                    <span className="sla-priority-list-meta">First reply</span>
+                    <span className="sla-priority-list-value">
+                      {formatSlaTarget(rule.firstReplyValue, rule.firstReplyUnit)}
+                    </span>
+                  </div>
+                  <div className="sla-priority-col-metric">
+                    <span className="sla-priority-list-meta">Resolve</span>
+                    <span className="sla-priority-list-value">
+                      {formatSlaTarget(rule.resolveValue, rule.resolveUnit)}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </Modal>
     </div>
   );

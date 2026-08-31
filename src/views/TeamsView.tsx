@@ -24,8 +24,8 @@ export interface HelpdeskTeam {
   description: string;
   membersCount: number;
   memberAvatars: string[];
-  /** At most one category — assigned from the category form, not here */
-  category: string | null;
+  /** Categories this team handles — assigned from the category form, not here */
+  categories: string[];
   openTickets: number;
   teamLead: string;
   status: 'Active' | 'Inactive';
@@ -88,7 +88,7 @@ export const TeamsView: React.FC<TeamsViewProps> = ({
       description: 'Handles general HR and workforce-related employee requests',
       membersCount: 6,
       memberAvatars: ['PS', 'RS', 'ER', 'AR'],
-      category: 'HR',
+      categories: ['HR', 'Leave'],
       openTickets: 18,
       teamLead: 'Priya Shah',
       status: 'Active',
@@ -103,7 +103,7 @@ export const TeamsView: React.FC<TeamsViewProps> = ({
       description: 'Handles attendance and time tracking requests',
       membersCount: 3,
       memberAvatars: ['RS', 'AR'],
-      category: 'Attendance',
+      categories: ['Attendance'],
       openTickets: 6,
       teamLead: 'Rahul Sharma',
       status: 'Active',
@@ -118,7 +118,7 @@ export const TeamsView: React.FC<TeamsViewProps> = ({
       description: 'Handles leave and balance requests',
       membersCount: 3,
       memberAvatars: ['ER', 'PS'],
-      category: 'Leave',
+      categories: [],
       openTickets: 5,
       teamLead: 'Elena Rostova',
       status: 'Active',
@@ -133,7 +133,7 @@ export const TeamsView: React.FC<TeamsViewProps> = ({
       description: 'Handles payroll, tax, bonus and payslip related requests',
       membersCount: 4,
       memberAvatars: ['MC', 'RS', 'PS'],
-      category: 'Payroll',
+      categories: ['Payroll'],
       openTickets: 9,
       teamLead: 'Rahul Sharma',
       status: 'Active',
@@ -148,7 +148,7 @@ export const TeamsView: React.FC<TeamsViewProps> = ({
       description: 'Handles system, hardware and software access requests',
       membersCount: 5,
       memberAvatars: ['DM', 'MC', 'SJ'],
-      category: 'IT',
+      categories: ['IT'],
       openTickets: 12,
       teamLead: 'David Miller',
       status: 'Active',
@@ -163,7 +163,7 @@ export const TeamsView: React.FC<TeamsViewProps> = ({
       description: 'Handles facilities, transport and administrative requests',
       membersCount: 3,
       memberAvatars: ['EW', 'AR'],
-      category: 'Administration',
+      categories: ['Administration'],
       openTickets: 5,
       teamLead: 'Emma Wilson',
       status: 'Active',
@@ -178,7 +178,7 @@ export const TeamsView: React.FC<TeamsViewProps> = ({
       description: 'General employee queries and onboarding support',
       membersCount: 4,
       memberAvatars: ['NP', 'AK'],
-      category: null,
+      categories: [],
       openTickets: 2,
       teamLead: 'Neha Patel',
       status: 'Active',
@@ -193,7 +193,7 @@ export const TeamsView: React.FC<TeamsViewProps> = ({
       description: 'Office, transport, and workplace facility requests',
       membersCount: 3,
       memberAvatars: ['EW', 'MC'],
-      category: null,
+      categories: [],
       openTickets: 1,
       teamLead: 'Marcus Chen',
       status: 'Active',
@@ -208,7 +208,7 @@ export const TeamsView: React.FC<TeamsViewProps> = ({
       description: 'Warehouse and floor operations support',
       membersCount: 4,
       memberAvatars: ['NW', 'RS'],
-      category: 'Warehouse Ops',
+      categories: ['Warehouse Ops'],
       openTickets: 7,
       teamLead: 'Rahul Sharma',
       status: 'Active',
@@ -223,7 +223,7 @@ export const TeamsView: React.FC<TeamsViewProps> = ({
       description: 'Fleet and driver support for Northwind',
       membersCount: 3,
       memberAvatars: ['JL', 'SO'],
-      category: 'Fleet Support',
+      categories: ['Fleet Support'],
       openTickets: 5,
       teamLead: 'Jordan Lee',
       status: 'Active',
@@ -238,7 +238,7 @@ export const TeamsView: React.FC<TeamsViewProps> = ({
       description: 'Store operations and frontline support',
       membersCount: 3,
       memberAvatars: ['CT', 'PS'],
-      category: 'Store Operations',
+      categories: ['Store Operations'],
       openTickets: 4,
       teamLead: 'Priya Shah',
       status: 'Active',
@@ -253,7 +253,7 @@ export const TeamsView: React.FC<TeamsViewProps> = ({
       description: 'Retail people policies and HR support',
       membersCount: 2,
       memberAvatars: ['MC', 'DP'],
-      category: 'Retail HR',
+      categories: ['Retail HR'],
       openTickets: 3,
       teamLead: 'Mia Chen',
       status: 'Active',
@@ -284,7 +284,7 @@ export const TeamsView: React.FC<TeamsViewProps> = ({
     const matchesStatus = statusFilter === 'all' || t.status.toLowerCase() === statusFilter;
     const matchesCategory =
       categoryFilter === 'all' ||
-      (t.category !== null && t.category.toLowerCase() === categoryFilter);
+      t.categories.some(c => c.toLowerCase() === categoryFilter);
 
     return matchesSearch && matchesStatus && matchesCategory;
   });
@@ -329,7 +329,7 @@ export const TeamsView: React.FC<TeamsViewProps> = ({
         description: formDescription.trim() || 'Custom Helpdesk support team',
         membersCount: formMembers.length,
         memberAvatars: ['AR', 'PS'],
-        category: null,
+        categories: [],
         openTickets: 0,
         teamLead: formTeamLead,
         status: formStatus,
@@ -431,12 +431,20 @@ export const TeamsView: React.FC<TeamsViewProps> = ({
       )
     },
     {
-      key: 'category',
-      header: 'Category',
+      key: 'categories',
+      header: 'Categories',
       render: item => (
-        <span className="category-tag-pill">
-          {item.category || 'Not assigned'}
-        </span>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+          {item.categories.length > 0 ? (
+            item.categories.map(cat => (
+              <span key={cat} className="category-tag-pill">
+                {cat}
+              </span>
+            ))
+          ) : (
+            <span className="category-tag-pill">Not assigned</span>
+          )}
+        </div>
       )
     },
     {
@@ -704,7 +712,7 @@ export const TeamsView: React.FC<TeamsViewProps> = ({
 
             <div style={{ fontSize: '12px', color: 'var(--text-secondary)', display: 'flex', flexDirection: 'column', gap: '12px', lineHeight: 1.4 }}>
               <div>
-                <strong>Category assignment:</strong> Each team handles at most one category. Assign the handling team from the category form.
+                <strong>Category assignment:</strong> A team can handle multiple categories. Assign handling teams from the category form.
               </div>
               <div>
                 <strong>Auto routing:</strong> New tickets in a category route to that category&apos;s handling team.
@@ -805,8 +813,12 @@ export const TeamsView: React.FC<TeamsViewProps> = ({
                   <span className="meta-value">{selectedTeam.teamLead}</span>
                 </div>
                 <div className="meta-row-item">
-                  <span className="meta-label">Handled Category</span>
-                  <span className="meta-value">{selectedTeam.category || 'Not assigned — set from Categories'}</span>
+                  <span className="meta-label">Handled Categories</span>
+                  <span className="meta-value">
+                    {selectedTeam.categories.length > 0
+                      ? selectedTeam.categories.join(', ')
+                      : 'Not assigned — set from Categories'}
+                  </span>
                 </div>
                 <div className="meta-row-item">
                   <span className="meta-label">Total Assigned Members</span>
@@ -834,13 +846,25 @@ export const TeamsView: React.FC<TeamsViewProps> = ({
         {activeDetailTab === 'categories' && (
           <div className="team-detail-content-panel">
             <div className="sidebar-info-card">
-              <h3 className="text-h3">Handled category</h3>
-              <div style={{ display: 'flex', gap: '8px', marginTop: '12px' }}>
-                <span className="category-tag-pill" style={{ padding: '6px 14px', fontSize: '13px', fontWeight: 600 }}>
-                  {selectedTeam.category || 'Not assigned'}
-                </span>
+              <h3 className="text-h3">Handled categories</h3>
+              <div style={{ display: 'flex', gap: '8px', marginTop: '12px', flexWrap: 'wrap' }}>
+                {selectedTeam.categories.length > 0 ? (
+                  selectedTeam.categories.map(cat => (
+                    <span
+                      key={cat}
+                      className="category-tag-pill"
+                      style={{ padding: '6px 14px', fontSize: '13px', fontWeight: 600 }}
+                    >
+                      {cat}
+                    </span>
+                  ))
+                ) : (
+                  <span className="category-tag-pill" style={{ padding: '6px 14px', fontSize: '13px', fontWeight: 600 }}>
+                    Not assigned
+                  </span>
+                )}
               </div>
-              {!selectedTeam.category && (
+              {selectedTeam.categories.length === 0 && (
                 <p className="text-caption" style={{ marginTop: 12, color: 'var(--text-secondary)' }}>
                   Assign this team as the handling team when creating or editing a category.
                 </p>
@@ -855,7 +879,7 @@ export const TeamsView: React.FC<TeamsViewProps> = ({
               <h3 className="text-h3">Team Configuration History</h3>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '12px', fontSize: '12px' }}>
                 <div>• <strong>Team Lead Assigned:</strong> Priya Shah appointed as Team Lead (Aug 01, 2026)</div>
-                <div>• <strong>Category linked:</strong> Handling team set from Categories (Aug 05, 2026)</div>
+                <div>• <strong>Categories linked:</strong> Handling team set from Categories (Aug 05, 2026)</div>
                 <div>• <strong>Member Added:</strong> Rahul Sharma added to HR Support team (Aug 10, 2026)</div>
               </div>
             </div>

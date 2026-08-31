@@ -250,7 +250,7 @@ export const CategoriesView: React.FC<CategoriesViewProps> = ({
       companyId: 'co-acme',
       name: 'Leave',
       description: 'Leave and leave balance related requests',
-      assignedTeam: 'Leave Desk',
+      assignedTeam: 'HR Support',
       totalTickets: 28,
       openTickets: 10,
       status: 'Active',
@@ -368,36 +368,15 @@ export const CategoriesView: React.FC<CategoriesViewProps> = ({
   const selectedCategory =
     companyCategories.find(c => c.id === selectedCategoryId) || companyCategories[0];
 
-  const editingCategoryId = viewMode === 'edit' ? selectedCategoryId : null;
-
   const handlingTeamOptions = useMemo(
     () => handlingTeamsForCompany(formCompanyId),
     [formCompanyId]
   );
 
-  const teamsAssignedToOtherCategories = useMemo(
-    () =>
-      new Set(
-        categories
-          .filter(c => c.companyId === formCompanyId && c.id !== editingCategoryId)
-          .map(c => c.assignedTeam)
-      ),
-    [categories, formCompanyId, editingCategoryId]
-  );
-
-  const pickAvailableHandlingTeam = (
-    targetCompanyId: string,
-    excludeCategoryId?: string | null,
-    preferred?: string
-  ) => {
-    const taken = new Set(
-      categories
-        .filter(c => c.companyId === targetCompanyId && c.id !== excludeCategoryId)
-        .map(c => c.assignedTeam)
-    );
+  const pickDefaultHandlingTeam = (targetCompanyId: string, preferred?: string) => {
     const options = handlingTeamsForCompany(targetCompanyId);
-    if (preferred && options.includes(preferred) && !taken.has(preferred)) return preferred;
-    return options.find(team => !taken.has(team)) || options[0] || '';
+    if (preferred && options.includes(preferred)) return preferred;
+    return options[0] || '';
   };
 
   const renderCategoryStatusBadge = (status: 'Active' | 'Inactive') => {
@@ -437,7 +416,7 @@ export const CategoriesView: React.FC<CategoriesViewProps> = ({
     setFormEscalateResponse(false);
     setFormEscalateResolution(false);
     setFormStatus('Active');
-    setFormDefaultTeam(pickAvailableHandlingTeam(companyId));
+    setFormDefaultTeam(pickDefaultHandlingTeam(companyId));
     setFormNotifications({ ...DEFAULT_CATEGORY_NOTIFICATIONS });
   };
 
@@ -498,12 +477,8 @@ export const CategoriesView: React.FC<CategoriesViewProps> = ({
       onShowToast('warning', 'Audience incomplete', 'Select at least one group, or switch to Everyone.');
       return;
     }
-    if (!formDefaultTeam || teamsAssignedToOtherCategories.has(formDefaultTeam)) {
-      onShowToast(
-        'warning',
-        'Handling team unavailable',
-        'That team already handles another category. Pick a team without a category.'
-      );
+    if (!formDefaultTeam) {
+      onShowToast('warning', 'Handling team required', 'Select a team to route new requests in this category.');
       return;
     }
 
@@ -1104,13 +1079,7 @@ export const CategoriesView: React.FC<CategoriesViewProps> = ({
                   setFormAudienceQuery('');
                   setFormGroupQueries(emptyGroupQueries());
                   setFormGroupDropdownOpen({});
-                  setFormDefaultTeam(
-                    pickAvailableHandlingTeam(
-                      nextCompanyId,
-                      viewMode === 'edit' ? selectedCategoryId : null,
-                      formDefaultTeam
-                    )
-                  );
+                  setFormDefaultTeam(pickDefaultHandlingTeam(nextCompanyId, formDefaultTeam));
                 }}
               >
                 {HELPDESK_COMPANIES.map(c => (
@@ -1389,21 +1358,17 @@ export const CategoriesView: React.FC<CategoriesViewProps> = ({
               <FormField
                 label="Handling team"
                 required
-                hint="Each team handles one category. Teams already assigned elsewhere are disabled."
+                hint="A team can handle multiple categories. New tickets route to this team."
               >
                 <SelectInput value={formDefaultTeam} onChange={e => setFormDefaultTeam(e.target.value)}>
                   {handlingTeamOptions.length === 0 ? (
                     <option value="">No teams for this company</option>
                   ) : (
-                    handlingTeamOptions.map(teamName => {
-                      const isTaken = teamsAssignedToOtherCategories.has(teamName);
-                      return (
-                        <option key={teamName} value={teamName} disabled={isTaken}>
-                          {teamName}
-                          {isTaken ? ' (already has a category)' : ''}
-                        </option>
-                      );
-                    })
+                    handlingTeamOptions.map(teamName => (
+                      <option key={teamName} value={teamName}>
+                        {teamName}
+                      </option>
+                    ))
                   )}
                 </SelectInput>
               </FormField>
@@ -1422,11 +1387,7 @@ export const CategoriesView: React.FC<CategoriesViewProps> = ({
               <Button
                 variant="primary"
                 type="submit"
-                disabled={
-                  !formCategoryName.trim() ||
-                  !formDefaultTeam ||
-                  teamsAssignedToOtherCategories.has(formDefaultTeam)
-                }
+                disabled={!formCategoryName.trim() || !formDefaultTeam}
               >
                 Save Category
               </Button>
@@ -1449,7 +1410,7 @@ export const CategoriesView: React.FC<CategoriesViewProps> = ({
               }}
             >
               <div>
-                <strong>Handling team</strong> — assign here; each team can own only one category.
+                <strong>Handling team</strong> — assign here; the same team can handle multiple categories.
               </div>
               <div>
                 <strong>Who can raise</strong> — everyone, selected people, or groups.
@@ -1707,7 +1668,7 @@ export const CategoriesView: React.FC<CategoriesViewProps> = ({
                   • <strong>Category Created:</strong> {selectedCategory.name} initialized for {company.name}
                 </div>
                 <div>
-                  • <strong>Handling Team:</strong> Exclusive owner {selectedCategory.assignedTeam}
+                  • <strong>Handling Team:</strong> {selectedCategory.assignedTeam}
                 </div>
                 <div>
                   • <strong>Audience Updated:</strong> {audienceLabel(selectedCategory.audience)}

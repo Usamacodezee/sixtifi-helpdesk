@@ -159,7 +159,7 @@ export const MyAssignedTicketsView: React.FC<MyAssignedTicketsViewProps> = ({
       requester: 'David Miller',
       category: 'HR',
       priority: 'Low',
-      status: 'Waiting for Employee',
+      status: 'In Progress',
       slaText: '2d remaining',
       slaState: 'on-track',
       lastUpdated: '2 hours ago',
@@ -555,7 +555,6 @@ export const MyAssignedTicketsView: React.FC<MyAssignedTicketsViewProps> = ({
                 <option value="all">All Statuses</option>
                 <option value="open">{getPlainStatusLabel('Open')}</option>
                 <option value="inprogress">{getPlainStatusLabel('In Progress')}</option>
-                <option value="waitingforemployee">{getPlainStatusLabel('Waiting for Employee')}</option>
                 <option value="resolved">{getPlainStatusLabel('Resolved')}</option>
               </SelectInput>
             </div>

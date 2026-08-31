@@ -460,6 +460,13 @@
   grid-template-columns: 1fr 1fr;
 }
 
+.cat-sla-priority-label {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-primary);
+  align-self: center;
+}
+
 .cat-sla-field {
   display: flex;
   flex-direction: column;

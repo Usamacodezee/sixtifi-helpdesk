@@ -31,15 +31,21 @@ import {
   CategoryAssignee,
   CategoryAudience,
   CategoryAudienceConfig,
+  CategoryBusinessHoursMode,
   CategoryNotificationRules,
+  CATEGORY_BUSINESS_HOURS_OPTIONS,
   DEFAULT_CATEGORY_NOTIFICATIONS,
   DEFAULT_CATEGORY_SLA,
   DEFAULT_PRIORITY_SLA,
   HelpdeskCategory,
+  NotificationChannel,
+  PRIORITY_LEVELS,
   PrioritySlaConfig,
   SlaTimeUnit,
   TicketPriorityLevel,
-  audienceLabel
+  audienceLabel,
+  businessHoursLabel,
+  notificationChannelLabel
 } from '../data/categoryTypes';
 import { getCompanyById, HELPDESK_COMPANIES } from '../data/companies';
 import { handlingTeamsForCompany } from '../data/helpdeskTeams';
@@ -60,15 +66,6 @@ const EMPLOYEE_OPTIONS: CategoryAssignee[] = [
   { id: 'emp-priya', name: 'Priya Shah', type: 'employee', initials: 'PS' },
   { id: 'emp-neha', name: 'Neha Patel', type: 'employee', initials: 'NP' }
 ];
-
-const ROLE_OPTIONS: CategoryAssignee[] = [
-  { id: 'role-dh', name: 'DH Department Head', type: 'role', initials: 'DH' },
-  { id: 'role-l2', name: 'L2 Manager', type: 'role', initials: 'LM' },
-  { id: 'role-hr', name: 'HR Support Agent', type: 'role', initials: 'HR' },
-  { id: 'role-it', name: 'IT Support Agent', type: 'role', initials: 'IT' }
-];
-
-const ASSIGNEE_OPTIONS = [...ROLE_OPTIONS, ...EMPLOYEE_OPTIONS];
 
 const AUDIENCE_OPTIONS: {
   value: CategoryAudience;
@@ -107,6 +104,24 @@ export interface CategoriesViewProps {
   onShowToast: (type: 'success' | 'error' | 'warning' | 'info', title: string, desc?: string) => void;
   onNavigateToAllTicketsWithCategoryFilter: (categoryName: string) => void;
 }
+
+const normalizeBusinessHours = (value: string): CategoryBusinessHoursMode =>
+  value === '24-hour' || value === 'shift-hours'
+    ? value
+    : value.toLowerCase().includes('24')
+      ? '24-hour'
+      : 'shift-hours';
+
+const normalizeNotifications = (
+  notifications?: Partial<CategoryNotificationRules>
+): CategoryNotificationRules => ({
+  ...DEFAULT_CATEGORY_NOTIFICATIONS,
+  ...(notifications || {}),
+  notifyEmpOnCreate: notifications?.enabled !== false,
+  notifyEmpOnReply: notifications?.enabled !== false,
+  notifyEmpOnResolve: notifications?.enabled !== false,
+  notifyAgentOnAssign: notifications?.enabled !== false
+});
 
 const emptyAudience = (): CategoryAudienceConfig => ({
   type: 'all',
@@ -153,16 +168,13 @@ export const CategoriesView: React.FC<CategoriesViewProps> = ({
   const [formGroupDropdownOpen, setFormGroupDropdownOpen] = useState<
     Partial<Record<DirectoryGroupKind, boolean>>
   >({});
-  const [formBusinessHours, setFormBusinessHours] = useState('Default 24x7');
+  const [formBusinessHours, setFormBusinessHours] = useState<CategoryBusinessHoursMode>('shift-hours');
   const [formEnableOnHold, setFormEnableOnHold] = useState(false);
   const [formAllowReopen, setFormAllowReopen] = useState(false);
   const [formPriorityChangeBy, setFormPriorityChangeBy] = useState({
     assignee: true,
     employee: false
   });
-  const [formCategoryAssignees, setFormCategoryAssignees] = useState<CategoryAssignee[]>([]);
-  const [formAssigneeQuery, setFormAssigneeQuery] = useState('');
-  const [formAddAssigneesAsFollowers, setFormAddAssigneesAsFollowers] = useState(true);
   const [formSlaExempt, setFormSlaExempt] = useState(false);
   const [formPrioritisationEnabled, setFormPrioritisationEnabled] = useState(true);
   const [formPrioritySla, setFormPrioritySla] = useState(DEFAULT_PRIORITY_SLA);
@@ -190,12 +202,12 @@ export const CategoriesView: React.FC<CategoriesViewProps> = ({
 
   const categoryConfigDefaults = {
     audience: emptyAudience(),
-    businessHours: 'Default 24x7',
+    businessHours: 'shift-hours' as CategoryBusinessHoursMode,
     enableOnHold: false,
     allowEmployeeReopen: false,
     priorityChangeBy: { assignee: true, employee: false },
     categoryAssignees: [] as CategoryAssignee[],
-    addAssigneesAsFollowers: true,
+    addAssigneesAsFollowers: false,
     prioritisationEnabled: true,
     slaExempt: false,
     prioritySla: DEFAULT_PRIORITY_SLA,
@@ -225,7 +237,6 @@ export const CategoriesView: React.FC<CategoriesViewProps> = ({
       companyId: 'co-acme',
       name: 'Attendance',
       description: 'Attendance and time tracking related requests',
-      categoryAssignees: [ROLE_OPTIONS[2]],
       assignedTeam: 'Attendance Desk',
       totalTickets: 42,
       openTickets: 18,
@@ -244,11 +255,7 @@ export const CategoriesView: React.FC<CategoriesViewProps> = ({
       openTickets: 10,
       status: 'Active',
       lastUpdated: 'Today',
-      audience: { type: 'groups', employeeIds: [], groupIds: ['grp-hr'] },
-      notifications: {
-        ...DEFAULT_CATEGORY_NOTIFICATIONS,
-        notifyAgentOnSlaWarning: false
-      }
+      audience: { type: 'groups', employeeIds: [], groupIds: ['grp-hr'] }
     }),
     withCategoryDefaults({
       id: 'cat-payroll',
@@ -256,7 +263,6 @@ export const CategoriesView: React.FC<CategoriesViewProps> = ({
       name: 'Payroll',
       description: 'Salary, payslip and payroll related requests',
       assignedTeam: 'Payroll Support',
-      categoryAssignees: [ROLE_OPTIONS[0]],
       enableOnHold: true,
       totalTickets: 31,
       openTickets: 12,
@@ -281,18 +287,12 @@ export const CategoriesView: React.FC<CategoriesViewProps> = ({
       name: 'IT',
       description: 'System, access and technology requests',
       assignedTeam: 'IT Support',
-      categoryAssignees: [ROLE_OPTIONS[3]],
       escalateOnResponseBreach: true,
       totalTickets: 24,
       openTickets: 10,
       status: 'Active',
       lastUpdated: 'Aug 14',
-      audience: { type: 'employees', employeeIds: ['emp-neha', 'emp-rahul'], groupIds: [] },
-      notifications: {
-        ...DEFAULT_CATEGORY_NOTIFICATIONS,
-        notifyLeadOnBreach: true,
-        notifyAgentOnSlaWarning: true
-      }
+      audience: { type: 'employees', employeeIds: ['emp-neha', 'emp-rahul'], groupIds: [] }
     }),
     withCategoryDefaults({
       id: 'cat-admin',
@@ -300,7 +300,6 @@ export const CategoriesView: React.FC<CategoriesViewProps> = ({
       name: 'Administration',
       description: 'Facilities and general administration requests',
       assignedTeam: 'Administration Support',
-      categoryAssignees: [EMPLOYEE_OPTIONS[3]],
       totalTickets: 11,
       openTickets: 5,
       status: 'Active',
@@ -426,13 +425,10 @@ export const CategoriesView: React.FC<CategoriesViewProps> = ({
     setFormAudienceQuery('');
     setFormGroupQueries(emptyGroupQueries());
     setFormGroupDropdownOpen({});
-    setFormBusinessHours('Default 24x7');
+    setFormBusinessHours('shift-hours');
     setFormEnableOnHold(false);
     setFormAllowReopen(false);
     setFormPriorityChangeBy({ assignee: true, employee: false });
-    setFormCategoryAssignees([]);
-    setFormAssigneeQuery('');
-    setFormAddAssigneesAsFollowers(true);
     setFormSlaExempt(false);
     setFormPrioritisationEnabled(true);
     setFormPrioritySla(DEFAULT_PRIORITY_SLA);
@@ -459,23 +455,20 @@ export const CategoriesView: React.FC<CategoriesViewProps> = ({
     setFormAudienceQuery('');
     setFormGroupQueries(emptyGroupQueries());
     setFormGroupDropdownOpen({});
-    setFormBusinessHours(cat.businessHours);
+    setFormBusinessHours(normalizeBusinessHours(cat.businessHours));
     setFormEnableOnHold(cat.enableOnHold);
     setFormAllowReopen(cat.allowEmployeeReopen);
     setFormPriorityChangeBy({ ...cat.priorityChangeBy });
-    setFormCategoryAssignees([...cat.categoryAssignees]);
-    setFormAssigneeQuery('');
-    setFormAddAssigneesAsFollowers(cat.addAssigneesAsFollowers);
     setFormSlaExempt(cat.slaExempt);
     setFormPrioritisationEnabled(cat.prioritisationEnabled);
-    setFormPrioritySla({ ...cat.prioritySla });
+    setFormPrioritySla({ ...DEFAULT_PRIORITY_SLA, ...cat.prioritySla });
     setFormCategorySla({ ...(cat.categorySla || DEFAULT_CATEGORY_SLA) });
     setFormDefaultPriority(cat.defaultPriority);
     setFormEscalateResponse(cat.escalateOnResponseBreach);
     setFormEscalateResolution(cat.escalateOnResolutionBreach);
     setFormStatus(cat.status);
     setFormDefaultTeam(cat.assignedTeam);
-    setFormNotifications({ ...cat.notifications });
+    setFormNotifications(normalizeNotifications(cat.notifications));
     setViewMode('edit');
   };
 
@@ -514,6 +507,24 @@ export const CategoriesView: React.FC<CategoriesViewProps> = ({
       return;
     }
 
+    const notifications: CategoryNotificationRules = formNotifications.enabled
+      ? {
+          enabled: true,
+          channel: formNotifications.channel,
+          notifyEmpOnCreate: true,
+          notifyEmpOnReply: true,
+          notifyEmpOnResolve: true,
+          notifyAgentOnAssign: true
+        }
+      : {
+          enabled: false,
+          channel: formNotifications.channel,
+          notifyEmpOnCreate: false,
+          notifyEmpOnReply: false,
+          notifyEmpOnResolve: false,
+          notifyAgentOnAssign: false
+        };
+
     const sharedFields = {
       name: formCategoryName.trim(),
       description: formDescription.trim() || 'Custom Helpdesk request category',
@@ -525,21 +536,18 @@ export const CategoriesView: React.FC<CategoriesViewProps> = ({
       enableOnHold: formEnableOnHold,
       allowEmployeeReopen: formAllowReopen,
       priorityChangeBy: { ...formPriorityChangeBy },
-      categoryAssignees: formCategoryAssignees,
-      addAssigneesAsFollowers: formAddAssigneesAsFollowers,
+      categoryAssignees: [],
+      addAssigneesAsFollowers: false,
       slaExempt: formSlaExempt,
       prioritisationEnabled: formPrioritisationEnabled,
-      prioritySla: { ...formPrioritySla },
-      categorySla: { ...formCategorySla },
+      prioritySla: Object.fromEntries(
+        PRIORITY_LEVELS.map(p => [p, { ...formPrioritySla[p], enabled: true }])
+      ) as Record<TicketPriorityLevel, PrioritySlaConfig>,
+      categorySla: { ...formCategorySla, enabled: true },
       defaultPriority: formDefaultPriority,
       escalateOnResponseBreach: formSlaExempt ? false : formEscalateResponse,
       escalateOnResolutionBreach: formSlaExempt ? false : formEscalateResolution,
-      notifications: formSlaExempt
-        ? {
-            ...formNotifications,
-            notifyLeadOnBreach: false
-          }
-        : { ...formNotifications }
+      notifications
     };
 
     if (viewMode === 'create') {
@@ -567,12 +575,6 @@ export const CategoriesView: React.FC<CategoriesViewProps> = ({
 
     setViewMode('list');
   };
-
-  const filteredAssigneeOptions = ASSIGNEE_OPTIONS.filter(
-    a =>
-      a.name.toLowerCase().includes(formAssigneeQuery.toLowerCase()) &&
-      !formCategoryAssignees.some(selected => selected.id === a.id)
-  );
 
   const filteredAudienceEmployees = companyEmployees.filter(
     e =>
@@ -619,20 +621,9 @@ export const CategoriesView: React.FC<CategoriesViewProps> = ({
     setFormCategorySla(prev => ({ ...prev, ...patch }));
   };
 
-  const updateNotification = (key: keyof CategoryNotificationRules, value: boolean) => {
-    setFormNotifications(prev => ({ ...prev, [key]: value }));
+  const updateNotification = (patch: Partial<CategoryNotificationRules>) => {
+    setFormNotifications(prev => ({ ...prev, ...patch }));
   };
-
-  const renderAssigneeChips = (assignees: CategoryAssignee[], onRemove: (id: string) => void) =>
-    assignees.map(a => (
-      <span key={a.id} className="cat-assignee-chip">
-        <span className="cat-assignee-avatar">{a.initials}</span>
-        {a.name}
-        <button type="button" className="cat-assignee-remove" onClick={() => onRemove(a.id)} aria-label={`Remove ${a.name}`}>
-          <X size={12} />
-        </button>
-      </span>
-    ));
 
   const personById = (id: string): DirectoryPerson | undefined =>
     companyEmployees.find(e => e.id === id) || EMPLOYEE_OPTIONS.find(e => e.id === id) as unknown as DirectoryPerson;
@@ -1042,52 +1033,48 @@ export const CategoriesView: React.FC<CategoriesViewProps> = ({
           <Bell size={14} style={{ marginRight: 6, verticalAlign: 'text-bottom' }} />
           Email & in-app alerts
         </span>
-        <InfoHint text="Only for requests in this category" />
+        <InfoHint text="Only for requests in this category. SLA warning and breach alerts are managed under SLA & Escalation." />
       </div>
-      <p className="cat-checkbox-desc" style={{ marginBottom: '12px' }}>
-        Turn on the alerts you want for this category.
-      </p>
 
-      <div className="cat-notif-grid">
-        <div className="cat-notif-group">
-          <span className="cat-notif-group-title">For the requester</span>
-          <ToggleSwitch
-            checked={formNotifications.notifyEmpOnCreate}
-            onChange={v => updateNotification('notifyEmpOnCreate', v)}
-            label="When the request is submitted"
-          />
-          <ToggleSwitch
-            checked={formNotifications.notifyEmpOnReply}
-            onChange={v => updateNotification('notifyEmpOnReply', v)}
-            label="When someone replies"
-          />
-          <ToggleSwitch
-            checked={formNotifications.notifyEmpOnResolve}
-            onChange={v => updateNotification('notifyEmpOnResolve', v)}
-            label="When the request is resolved"
-          />
-        </div>
-        <div className="cat-notif-group">
-          <span className="cat-notif-group-title">For agents & leads</span>
-          <ToggleSwitch
-            checked={formNotifications.notifyAgentOnAssign}
-            onChange={v => updateNotification('notifyAgentOnAssign', v)}
-            label="When a ticket is assigned"
-          />
-          <ToggleSwitch
-            checked={formNotifications.notifyAgentOnSlaWarning}
-            onChange={v => updateNotification('notifyAgentOnSlaWarning', v)}
-            label="When SLA is close to missing"
-          />
-          {!formSlaExempt && (
-            <ToggleSwitch
-              checked={formNotifications.notifyLeadOnBreach}
-              onChange={v => updateNotification('notifyLeadOnBreach', v)}
-              label="When SLA is missed (escalation)"
-            />
-          )}
-        </div>
+      <div className="cat-follower-row" style={{ marginBottom: '12px' }}>
+        <ToggleSwitch
+          checked={formNotifications.enabled}
+          onChange={enabled => updateNotification({ enabled })}
+          label="Enable notifications for this category"
+        />
       </div>
+
+      {formNotifications.enabled && (
+        <>
+          <FormField label="Delivery channel" hint="How alerts are sent when events occur">
+            <SelectInput
+              value={formNotifications.channel}
+              onChange={e => updateNotification({ channel: e.target.value as NotificationChannel })}
+            >
+              <option value="in-app">In-app only</option>
+              <option value="email">Email only</option>
+              <option value="both">In-app and email</option>
+            </SelectInput>
+          </FormField>
+
+          <p className="cat-checkbox-desc" style={{ margin: '12px 0' }}>
+            The following alerts are always sent when notifications are enabled:
+          </p>
+
+          <div className="cat-notif-grid">
+            <div className="cat-notif-group">
+              <span className="cat-notif-group-title">For the requester</span>
+              <div className="cat-notif-readonly">When the request is submitted</div>
+              <div className="cat-notif-readonly">When someone replies</div>
+              <div className="cat-notif-readonly">When the request is resolved</div>
+            </div>
+            <div className="cat-notif-group">
+              <span className="cat-notif-group-title">For agents</span>
+              <div className="cat-notif-readonly">When a ticket is assigned</div>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 
@@ -1114,11 +1101,9 @@ export const CategoriesView: React.FC<CategoriesViewProps> = ({
                   const nextCompanyId = e.target.value;
                   setFormCompanyId(nextCompanyId);
                   setFormAudience(emptyAudience());
-                  setFormCategoryAssignees([]);
                   setFormAudienceQuery('');
                   setFormGroupQueries(emptyGroupQueries());
                   setFormGroupDropdownOpen({});
-                  setFormAssigneeQuery('');
                   setFormDefaultTeam(
                     pickAvailableHandlingTeam(
                       nextCompanyId,
@@ -1157,12 +1142,17 @@ export const CategoriesView: React.FC<CategoriesViewProps> = ({
 
             <FormField
               label="Working hours"
-              hint="When the SLA clock usually runs for this category"
+              hint="When the SLA clock runs for tickets in this category"
             >
-              <SelectInput value={formBusinessHours} onChange={e => setFormBusinessHours(e.target.value)}>
-                <option value="Default 24x7">Always (24×7)</option>
-                <option value="Standard Working Hours (9–6)">Standard hours (9–6)</option>
-                <option value="Shift Calendar">Follow shift schedule</option>
+              <SelectInput
+                value={formBusinessHours}
+                onChange={e => setFormBusinessHours(e.target.value as CategoryBusinessHoursMode)}
+              >
+                {CATEGORY_BUSINESS_HOURS_OPTIONS.map(opt => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
               </SelectInput>
             </FormField>
 
@@ -1211,49 +1201,6 @@ export const CategoriesView: React.FC<CategoriesViewProps> = ({
               </div>
             )}
 
-            <div className="cat-form-section">
-              <div className="cat-form-label-row">
-                <span className="cat-form-label">People who handle these requests</span>
-                <InfoHint text="Agents or roles that can be assigned tickets in this category" />
-              </div>
-              <div className="cat-chip-search">
-                {renderAssigneeChips(formCategoryAssignees, id =>
-                  setFormCategoryAssignees(prev => prev.filter(a => a.id !== id))
-                )}
-                <input
-                  className="cat-chip-search-input"
-                  value={formAssigneeQuery}
-                  onChange={e => setFormAssigneeQuery(e.target.value)}
-                  placeholder="Search role or person"
-                />
-              </div>
-              {formAssigneeQuery && filteredAssigneeOptions.length > 0 && (
-                <div className="cat-search-dropdown">
-                  {filteredAssigneeOptions.map(opt => (
-                    <button
-                      key={opt.id}
-                      type="button"
-                      className="cat-search-option"
-                      onClick={() => {
-                        setFormCategoryAssignees(prev => [...prev, opt]);
-                        setFormAssigneeQuery('');
-                      }}
-                    >
-                      <span className="cat-assignee-avatar">{opt.initials}</span>
-                      {opt.name}
-                    </button>
-                  ))}
-                </div>
-              )}
-              <div className="cat-follower-row">
-                <ToggleSwitch checked={formAddAssigneesAsFollowers} onChange={setFormAddAssigneesAsFollowers} />
-                <span>
-                  Also notify these people as followers
-                  <InfoHint text="They get updates, but are not the main person assigned" />
-                </span>
-              </div>
-            </div>
-
             {renderNotificationsSection()}
 
             <div className="cat-form-section cat-sla-section">
@@ -1261,7 +1208,7 @@ export const CategoriesView: React.FC<CategoriesViewProps> = ({
                 <ToggleSwitch
                   checked={formPrioritisationEnabled}
                   onChange={setFormPrioritisationEnabled}
-                  label="Use priority levels (High / Medium / Low)"
+                  label="Use priority levels (Urgent / High / Medium / Low)"
                 />
               </div>
 
@@ -1271,15 +1218,11 @@ export const CategoriesView: React.FC<CategoriesViewProps> = ({
                     Set how quickly each priority should get a first reply and a full resolution.
                   </p>
                   <div className="cat-sla-matrix">
-                  {(['High', 'Medium', 'Low'] as TicketPriorityLevel[]).map(priority => {
+                  {PRIORITY_LEVELS.map(priority => {
                     const row = formPrioritySla[priority];
                     return (
                       <div key={priority} className="cat-sla-row">
-                        <Checkbox
-                          checked={row.enabled}
-                          onChange={e => updatePrioritySla(priority, { enabled: e.target.checked })}
-                          label={priority}
-                        />
+                        <span className="cat-sla-priority-label">{priority}</span>
                         <div className="cat-sla-field">
                           <span className="cat-sla-field-label">First reply within</span>
                           <div className="cat-sla-inputs">
@@ -1291,7 +1234,6 @@ export const CategoriesView: React.FC<CategoriesViewProps> = ({
                                   firstResponseValue: Math.max(0, Number(e.target.value) || 0)
                                 })
                               }
-                              disabled={!row.enabled}
                             />
                             <SelectInput
                               value={row.firstResponseUnit}
@@ -1300,7 +1242,6 @@ export const CategoriesView: React.FC<CategoriesViewProps> = ({
                                   firstResponseUnit: e.target.value as SlaTimeUnit
                                 })
                               }
-                              disabled={!row.enabled}
                             >
                               <option value="Minutes">Minutes</option>
                               <option value="Hours">Hours</option>
@@ -1319,7 +1260,6 @@ export const CategoriesView: React.FC<CategoriesViewProps> = ({
                                   resolutionValue: Math.max(0, Number(e.target.value) || 0)
                                 })
                               }
-                              disabled={!row.enabled}
                             />
                             <SelectInput
                               value={row.resolutionUnit}
@@ -1328,7 +1268,6 @@ export const CategoriesView: React.FC<CategoriesViewProps> = ({
                                   resolutionUnit: e.target.value as SlaTimeUnit
                                 })
                               }
-                              disabled={!row.enabled}
                             >
                               <option value="Minutes">Minutes</option>
                               <option value="Hours">Hours</option>
@@ -1404,7 +1343,7 @@ export const CategoriesView: React.FC<CategoriesViewProps> = ({
               <div className="cat-form-section">
                 <span className="cat-form-label">Default priority for new requests</span>
                 <div className="cat-radio-row" style={{ marginTop: '8px' }}>
-                  {(['High', 'Medium', 'Low'] as TicketPriorityLevel[]).map(p => (
+                  {PRIORITY_LEVELS.map(p => (
                     <label key={p} className="cat-radio-option">
                       <input
                         type="radio"
@@ -1641,7 +1580,7 @@ export const CategoriesView: React.FC<CategoriesViewProps> = ({
                 </div>
                 <div className="meta-row-item">
                   <span className="meta-label">Business Hours</span>
-                  <span className="meta-value">{selectedCategory.businessHours}</span>
+                  <span className="meta-value">{businessHoursLabel(normalizeBusinessHours(selectedCategory.businessHours))}</span>
                 </div>
                 <div className="meta-row-item">
                   <span className="meta-label">Escalation</span>
@@ -1722,35 +1661,33 @@ export const CategoriesView: React.FC<CategoriesViewProps> = ({
               <h3 className="text-h3">Notification rules</h3>
               <p className="text-body" style={{ color: 'var(--text-secondary)', marginBottom: 12 }}>
                 These alerts fire only for tickets in <strong>{selectedCategory.name}</strong> under{' '}
-                <strong>{company.name}</strong>.
+                <strong>{company.name}</strong>. SLA warning and breach alerts are configured under SLA & Escalation.
               </p>
-              <div className="cat-notif-grid">
-                <div className="cat-notif-group">
-                  <span className="cat-notif-group-title">Employee</span>
-                  <div className="cat-notif-readonly">
-                    Submit confirmation — {notif.notifyEmpOnCreate ? 'On' : 'Off'}
-                  </div>
-                  <div className="cat-notif-readonly">Agent reply — {notif.notifyEmpOnReply ? 'On' : 'Off'}</div>
-                  <div className="cat-notif-readonly">Resolved — {notif.notifyEmpOnResolve ? 'On' : 'Off'}</div>
+              <div className="meta-rows-list" style={{ marginBottom: 16 }}>
+                <div className="meta-row-item">
+                  <span className="meta-label">Status</span>
+                  <span className="meta-value">{notif.enabled ? 'Enabled' : 'Disabled'}</span>
                 </div>
-                <div className="cat-notif-group">
-                  <span className="cat-notif-group-title">Agent & lead</span>
-                  <div className="cat-notif-readonly">Assignment — {notif.notifyAgentOnAssign ? 'On' : 'Off'}</div>
-                  <div className="cat-notif-readonly">
-                    SLA warning — {notif.notifyAgentOnSlaWarning ? 'On' : 'Off'}
+                {notif.enabled && (
+                  <div className="meta-row-item">
+                    <span className="meta-label">Channel</span>
+                    <span className="meta-value">{notificationChannelLabel(notif.channel)}</span>
                   </div>
-                  {!selectedCategory.slaExempt && (
-                    <div className="cat-notif-readonly">
-                      SLA breach — {notif.notifyLeadOnBreach ? 'On' : 'Off'}
-                    </div>
-                  )}
-                </div>
+                )}
               </div>
-              {selectedCategory.slaExempt && (
-                <p className="text-caption" style={{ marginTop: 12, color: 'var(--text-secondary)' }}>
-                  SLA Escalation is off for this category — breach escalation alerts do not apply. SLA warning alerts
-                  still can.
-                </p>
+              {notif.enabled && (
+                <div className="cat-notif-grid">
+                  <div className="cat-notif-group">
+                    <span className="cat-notif-group-title">Requester</span>
+                    <div className="cat-notif-readonly">When the request is submitted</div>
+                    <div className="cat-notif-readonly">When someone replies</div>
+                    <div className="cat-notif-readonly">When the request is resolved</div>
+                  </div>
+                  <div className="cat-notif-group">
+                    <span className="cat-notif-group-title">Agents</span>
+                    <div className="cat-notif-readonly">When a ticket is assigned</div>
+                  </div>
+                </div>
               )}
               <div style={{ marginTop: 16 }}>
                 <Button variant="outline" size="sm" onClick={() => handleOpenEditForm(selectedCategory)}>

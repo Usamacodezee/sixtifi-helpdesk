@@ -913,6 +913,10 @@
 }
 
 
+.dash-kpi-five {
+  grid-template-columns: repeat(5, 1fr);
+}
+
 .dash-kpi-six {
   grid-template-columns: repeat(6, 1fr);
 }
@@ -1151,12 +1155,14 @@
 }
 
 @media (max-width: 1200px) {
+  .dash-kpi-five,
   .dash-kpi-six {
     grid-template-columns: repeat(3, 1fr);
   }
 }
 
 @media (max-width: 640px) {
+  .dash-kpi-five,
   .dash-kpi-six {
     grid-template-columns: repeat(2, 1fr);
   }

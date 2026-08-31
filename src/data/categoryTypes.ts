@@ -1,6 +1,8 @@
 export type CategoryAudience = 'all' | 'employees' | 'groups';
-export type TicketPriorityLevel = 'High' | 'Medium' | 'Low';
+export type TicketPriorityLevel = 'Urgent' | 'High' | 'Medium' | 'Low';
 export type SlaTimeUnit = 'Minutes' | 'Hours' | 'Days';
+export type CategoryBusinessHoursMode = 'shift-hours' | '24-hour';
+export type NotificationChannel = 'in-app' | 'email' | 'both';
 
 export interface CategoryAssignee {
   id: string;
@@ -19,12 +21,16 @@ export interface PrioritySlaConfig {
 
 /** Per-category notification rules (company-scoped via the parent category). */
 export interface CategoryNotificationRules {
+  enabled: boolean;
+  channel: NotificationChannel;
+  /** Fixed on when enabled — request submitted */
   notifyEmpOnCreate: boolean;
+  /** Fixed on when enabled — someone replies */
   notifyEmpOnReply: boolean;
+  /** Fixed on when enabled — request resolved */
   notifyEmpOnResolve: boolean;
+  /** Fixed on when enabled — ticket assigned */
   notifyAgentOnAssign: boolean;
-  notifyAgentOnSlaWarning: boolean;
-  notifyLeadOnBreach: boolean;
 }
 
 export interface CategoryAudienceConfig {
@@ -46,7 +52,7 @@ export interface HelpdeskCategory {
   status: 'Active' | 'Inactive';
   lastUpdated: string;
   audience: CategoryAudienceConfig;
-  businessHours: string;
+  businessHours: CategoryBusinessHoursMode;
   enableOnHold: boolean;
   allowEmployeeReopen: boolean;
   priorityChangeBy: {
@@ -70,7 +76,16 @@ export interface HelpdeskCategory {
   notifications: CategoryNotificationRules;
 }
 
+export const PRIORITY_LEVELS: TicketPriorityLevel[] = ['Urgent', 'High', 'Medium', 'Low'];
+
 export const DEFAULT_PRIORITY_SLA: Record<TicketPriorityLevel, PrioritySlaConfig> = {
+  Urgent: {
+    enabled: true,
+    firstResponseValue: 1,
+    firstResponseUnit: 'Hours',
+    resolutionValue: 4,
+    resolutionUnit: 'Hours'
+  },
   High: {
     enabled: true,
     firstResponseValue: 4,
@@ -104,12 +119,38 @@ export const DEFAULT_CATEGORY_SLA: PrioritySlaConfig = {
 };
 
 export const DEFAULT_CATEGORY_NOTIFICATIONS: CategoryNotificationRules = {
+  enabled: true,
+  channel: 'both',
   notifyEmpOnCreate: true,
   notifyEmpOnReply: true,
   notifyEmpOnResolve: true,
-  notifyAgentOnAssign: true,
-  notifyAgentOnSlaWarning: true,
-  notifyLeadOnBreach: true
+  notifyAgentOnAssign: true
+};
+
+export const CATEGORY_BUSINESS_HOURS_OPTIONS: Array<{
+  value: CategoryBusinessHoursMode;
+  label: string;
+  description: string;
+}> = [
+  {
+    value: 'shift-hours',
+    label: 'Working hours only',
+    description: 'SLA clock pauses outside the assigned agent’s working hours.'
+  },
+  {
+    value: '24-hour',
+    label: 'Full day (24 hour)',
+    description: 'SLA clock runs continuously, including nights and weekends.'
+  }
+];
+
+export const businessHoursLabel = (mode: CategoryBusinessHoursMode): string =>
+  CATEGORY_BUSINESS_HOURS_OPTIONS.find(o => o.value === mode)?.label || mode;
+
+export const notificationChannelLabel = (channel: NotificationChannel): string => {
+  if (channel === 'in-app') return 'In-app only';
+  if (channel === 'email') return 'Email only';
+  return 'In-app and email';
 };
 
 export const audienceLabel = (audience: CategoryAudienceConfig): string => {

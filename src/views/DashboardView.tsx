@@ -7,7 +7,6 @@ import {
   Ticket,
   AlertTriangle,
   CheckCircle2,
-  Inbox,
   Plus,
   ArrowRight,
   Clock,
@@ -126,7 +125,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   const renderCategoryDetailChart = (cat: CategoryStatusBreakdown) => {
     const rows = [
       { label: 'Open', value: cat.open, color: STATUS_COLORS.open },
-      { label: 'In Progress', value: cat.inProgress, color: STATUS_COLORS.inProgress },
+      { label: 'In progress', value: cat.inProgress, color: STATUS_COLORS.inProgress },
       { label: 'Resolved', value: cat.resolved, color: STATUS_COLORS.resolved },
       { label: 'Closed', value: cat.closed, color: STATUS_COLORS.closed }
     ];
@@ -267,7 +266,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         </div>
       </div>
 
-      <div className="dashboard-kpi-grid dash-kpi-six">
+      <div className="dashboard-kpi-grid dash-kpi-five">
         <button type="button" className="dashboard-kpi-card is-blue" onClick={onNavigateToAllTickets}>
           <div className="kpi-header">
             <span className="kpi-title">Open</span>
@@ -276,21 +275,13 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           <div className="kpi-value">{metrics.open}</div>
           <span className="kpi-foot">Active backlog</span>
         </button>
-        <button type="button" className="dashboard-kpi-card is-amber" onClick={onNavigateToAllTickets}>
-          <div className="kpi-header">
-            <span className="kpi-title">Unassigned</span>
-            <span className="kpi-icon-wrap"><Inbox size={15} /></span>
-          </div>
-          <div className="kpi-value">{metrics.unassigned}</div>
-          <span className="kpi-foot">Needs routing</span>
-        </button>
         <button type="button" className="dashboard-kpi-card is-sky" onClick={onNavigateToAllTickets}>
           <div className="kpi-header">
-            <span className="kpi-title">In Progress</span>
+            <span className="kpi-title">In progress</span>
             <span className="kpi-icon-wrap"><Clock size={15} /></span>
           </div>
           <div className="kpi-value">{metrics.inProgress}</div>
-          <span className="kpi-foot">Being worked</span>
+          <span className="kpi-foot">Being handled</span>
         </button>
         <button type="button" className="dashboard-kpi-card is-violet" onClick={onNavigateToAllTickets}>
           <div className="kpi-header">
@@ -515,7 +506,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </div>
           <div className="dash-legend">
             <span><i style={{ background: STATUS_COLORS.open }} /> Open</span>
-            <span><i style={{ background: STATUS_COLORS.inProgress }} /> In Progress</span>
+            <span><i style={{ background: STATUS_COLORS.inProgress }} /> In progress</span>
             <span><i style={{ background: STATUS_COLORS.resolved }} /> Resolved</span>
             <span><i style={{ background: STATUS_COLORS.closed }} /> Closed</span>
           </div>

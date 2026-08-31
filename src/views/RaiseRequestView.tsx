@@ -1,10 +1,12 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { PageHeader } from '../components/ui/PageHeader';
 import { Button } from '../components/ui/Button';
 import { FormField, TextInput, SelectInput, TextareaInput } from '../components/ui/FormControls';
 import { StatusBadge } from '../components/ui/Badge';
-import { Paperclip, User, Clock, FileText, Send, CheckCircle2, Trash2, HelpCircle, ArrowRight } from 'lucide-react';
+import { Paperclip, User, Clock, FileText, Send, CheckCircle2, Trash2, HelpCircle, ArrowRight, X } from 'lucide-react';
 import { getCompanyById, HELPDESK_COMPANIES } from '../data/companies';
+import { GENERAL_SETTINGS_UPDATED_EVENT, getGeneralSettings } from '../data/generalSettings';
+import { employeesForCompany } from '../data/directory';
 import './RaiseRequestView.css';
 
 export interface RaiseRequestViewProps {
@@ -53,10 +55,36 @@ export const RaiseRequestView: React.FC<RaiseRequestViewProps> = ({
   const [subject, setSubject] = useState('');
   const [description, setDescription] = useState('');
   const [priority, setPriority] = useState('Medium');
+  const [assigneeId, setAssigneeId] = useState('');
+  const [assigneeQuery, setAssigneeQuery] = useState('');
+  const [assigneeDropdownOpen, setAssigneeDropdownOpen] = useState(false);
+  const [enableAutoAssignment, setEnableAutoAssignment] = useState(
+    () => getGeneralSettings(companyId).enableAutoAssignment
+  );
   const [attachments, setAttachments] = useState<{ name: string; size: string }[]>([]);
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
   const [submittedTicket, setSubmittedTicket] = useState<{ id: string; subject: string } | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const teamMembers = useMemo(() => employeesForCompany(companyId), [companyId]);
+  const selectedAssignee = teamMembers.find(member => member.id === assigneeId);
+
+  const filteredAssignees = teamMembers.filter(member => {
+    if (member.id === assigneeId) return false;
+    const q = assigneeQuery.trim().toLowerCase();
+    if (!q) return true;
+    return (
+      member.name.toLowerCase().includes(q) ||
+      member.department.toLowerCase().includes(q)
+    );
+  });
+
+  useEffect(() => {
+    const refresh = () => setEnableAutoAssignment(getGeneralSettings(companyId).enableAutoAssignment);
+    refresh();
+    window.addEventListener(GENERAL_SETTINGS_UPDATED_EVENT, refresh);
+    return () => window.removeEventListener(GENERAL_SETTINGS_UPDATED_EVENT, refresh);
+  }, [companyId]);
 
   // Keep category valid when company switches
   React.useEffect(() => {
@@ -64,6 +92,9 @@ export const RaiseRequestView: React.FC<RaiseRequestViewProps> = ({
     if (!opts.some(o => o.value === category)) {
       setCategory(opts[0]?.value || '');
     }
+    setAssigneeId('');
+    setAssigneeQuery('');
+    setEnableAutoAssignment(getGeneralSettings(companyId).enableAutoAssignment);
   }, [companyId, category]);
 
   const handleSelectShortcut = (catKey: string) => {
@@ -76,6 +107,9 @@ export const RaiseRequestView: React.FC<RaiseRequestViewProps> = ({
     if (!category) newErrors.category = 'Please select a category';
     if (!subject.trim()) newErrors.subject = 'Subject is required';
     if (!description.trim()) newErrors.description = 'Please describe your request details';
+    if (!enableAutoAssignment && !assigneeId) {
+      newErrors.assignee = 'Please select a team member to assign this request to';
+    }
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -314,15 +348,104 @@ export const RaiseRequestView: React.FC<RaiseRequestViewProps> = ({
                 <option value="Low">Low</option>
                 <option value="Medium">Medium (usual)</option>
                 <option value="High">High</option>
+                <option value="Urgent">Urgent</option>
               </SelectInput>
             </FormField>
           </div>
+
+          {!enableAutoAssignment && (
+            <div>
+              <div className="form-section-header">
+                <h3 className="form-section-title">
+                  <User size={18} style={{ color: 'var(--color-primary-600)' }} />
+                  5. Assign to team member
+                </h3>
+                <p className="form-section-subtitle">
+                  Auto-assignment is off for {company.name}. Choose who should handle this request.
+                </p>
+              </div>
+
+              <FormField
+                label="Assignee"
+                required
+                hint="Search and select a team member from this company"
+                error={errors.assignee}
+              >
+                <div className="raise-assignee-picker">
+                  <div className={`raise-assignee-search ${errors.assignee ? 'has-error' : ''}`}>
+                    {selectedAssignee && (
+                      <span className="raise-assignee-chip">
+                        <span className="raise-assignee-avatar">{selectedAssignee.initials}</span>
+                        {selectedAssignee.name}
+                        <button
+                          type="button"
+                          className="raise-assignee-remove"
+                          onClick={() => {
+                            setAssigneeId('');
+                            setAssigneeQuery('');
+                            setErrors(prev => ({ ...prev, assignee: '' }));
+                          }}
+                          aria-label={`Remove ${selectedAssignee.name}`}
+                        >
+                          <X size={12} />
+                        </button>
+                      </span>
+                    )}
+                    {!selectedAssignee && (
+                      <input
+                        className="raise-assignee-input"
+                        value={assigneeQuery}
+                        onChange={e => {
+                          setAssigneeQuery(e.target.value);
+                          setAssigneeDropdownOpen(true);
+                          if (errors.assignee) setErrors(prev => ({ ...prev, assignee: '' }));
+                        }}
+                        onFocus={() => setAssigneeDropdownOpen(true)}
+                        onBlur={() => window.setTimeout(() => setAssigneeDropdownOpen(false), 150)}
+                        placeholder="Search team members..."
+                        autoComplete="off"
+                      />
+                    )}
+                  </div>
+                  {assigneeDropdownOpen && !selectedAssignee && filteredAssignees.length > 0 && (
+                    <div className="raise-assignee-dropdown">
+                      {filteredAssignees.map(member => (
+                        <button
+                          key={member.id}
+                          type="button"
+                          className="raise-assignee-option"
+                          onMouseDown={e => e.preventDefault()}
+                          onClick={() => {
+                            setAssigneeId(member.id);
+                            setAssigneeQuery('');
+                            setAssigneeDropdownOpen(false);
+                            setErrors(prev => ({ ...prev, assignee: '' }));
+                          }}
+                        >
+                          <span className="raise-assignee-avatar">{member.initials}</span>
+                          <span>
+                            {member.name}
+                            <span className="raise-assignee-meta">{member.department}</span>
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  {assigneeDropdownOpen && !selectedAssignee && assigneeQuery && filteredAssignees.length === 0 && (
+                    <div className="raise-assignee-dropdown">
+                      <div className="raise-assignee-empty">No team members match your search.</div>
+                    </div>
+                  )}
+                </div>
+              </FormField>
+            </div>
+          )}
 
           <div>
             <div className="form-section-header">
               <h3 className="form-section-title">
                 <User size={18} style={{ color: 'var(--color-primary-600)' }} />
-                5. Your details
+                {enableAutoAssignment ? '5. Your details' : '6. Your details'}
               </h3>
               <p className="form-section-subtitle">Filled in from your Sixtifi profile.</p>
             </div>

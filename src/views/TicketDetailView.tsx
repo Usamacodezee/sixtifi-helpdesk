@@ -23,8 +23,7 @@ import {
   ArrowLeft,
   UserCheck,
   ShieldAlert,
-  User,
-  AlertCircle
+  User
 } from 'lucide-react';
 import './TicketDetailView.css';
 
@@ -73,7 +72,7 @@ export const TicketDetailView: React.FC<TicketDetailViewProps> = ({
   // Ticket Metadata State
   const [status, setStatus] = useState<TicketStatus>('In Progress');
   const [priority, setPriority] = useState<TicketPriority>('High');
-  const [assignedTeam, setAssignedTeam] = useState('HR Support');
+  const assignedTeam = 'HR Support';
   const [assignedAgent, setAssignedAgent] = useState('Rahul Sharma');
 
   // Dropdown menus & Modals
@@ -208,14 +207,6 @@ export const TicketDetailView: React.FC<TicketDetailViewProps> = ({
 
     setReplyText('');
     setAttachedFile(null);
-    if (status === 'Waiting for Employee') {
-      const prev = status;
-      setStatus('In Progress');
-      appendAudit(
-        `Status changed: ${getPlainStatusLabel(prev)} → ${getPlainStatusLabel('In Progress')}`,
-        newMsg.author
-      );
-    }
     onShowToast('success', isNote ? 'Internal Note Added' : 'Reply Sent', isNote ? 'Visible only to Helpdesk/HR staff.' : 'Message added to ticket thread.');
   };
 
@@ -394,20 +385,6 @@ export const TicketDetailView: React.FC<TicketDetailViewProps> = ({
                       <button
                         style={{ width: '100%', padding: '6px 14px', textAlign: 'left', background: 'none', border: 'none', fontSize: '12px', cursor: 'pointer' }}
                         onClick={() => {
-                          const nextStatus: TicketStatus = status === 'Waiting for Employee' ? 'In Progress' : 'Waiting for Employee';
-                          appendAudit(
-                            `Status changed: ${getPlainStatusLabel(status)} → ${getPlainStatusLabel(nextStatus)}`
-                          );
-                          setStatus(nextStatus);
-                          onShowToast('info', 'Status Updated', `Status changed to ${getPlainStatusLabel(nextStatus)}.`);
-                        }}
-                      >
-                        {status === 'Waiting for Employee' ? 'Mark as being worked on' : 'Ask employee for reply'}
-                      </button>
-
-                      <button
-                        style={{ width: '100%', padding: '6px 14px', textAlign: 'left', background: 'none', border: 'none', fontSize: '12px', cursor: 'pointer' }}
-                        onClick={() => {
                           const nextPriority = priority === 'High' ? 'Medium' : priority === 'Medium' ? 'Urgent' : 'High';
                           appendAudit(`Priority changed: ${priority} → ${nextPriority}`);
                           setPriority(nextPriority);
@@ -444,22 +421,6 @@ export const TicketDetailView: React.FC<TicketDetailViewProps> = ({
           </div>
         }
       />
-
-      {/* WAITING FOR EMPLOYEE — ACTION REQUIRED BANNER */}
-      {status === 'Waiting for Employee' && userRole === 'employee' && (
-        <div style={{ padding: '12px 16px', backgroundColor: '#FEF3C7', border: '1px solid #FDE68A', borderRadius: 'var(--radius-sm)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 'var(--space-4)' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#92400E' }}>
-            <AlertCircle size={18} />
-            <div>
-              <span style={{ fontSize: '13px', fontWeight: 700 }}>Need your reply</span>
-              <div style={{ fontSize: '12px', opacity: 0.9 }}>Support asked for more details before they can continue.</div>
-            </div>
-          </div>
-          <Button variant="primary" size="sm" onClick={() => replyInputRef.current?.focus()}>
-            Add Reply
-          </Button>
-        </div>
-      )}
 
       {/* 2-COLUMN FULL-PAGE WORKSPACE LAYOUT (65% / 35%) */}
       <div className="ticket-detail-layout">
@@ -735,26 +696,14 @@ export const TicketDetailView: React.FC<TicketDetailViewProps> = ({
             </div>
 
             {userRole === 'agent' && (
-              <div style={{ display: 'flex', gap: 'var(--space-2)', marginTop: 'var(--space-2)' }}>
+              <div style={{ marginTop: 'var(--space-2)' }}>
                 <Button
                   variant="outline"
                   size="sm"
-                  style={{ flex: 1 }}
-                  onClick={() => {
-                    setAssignedTeam('Payroll Ops');
-                    appendAudit('Team transferred: HR Support → Payroll Ops');
-                    onShowToast('info', 'Team Changed', 'Transferred to Payroll Ops team.');
-                  }}
-                >
-                  Change Team
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  style={{ flex: 1 }}
+                  style={{ width: '100%' }}
                   onClick={() => setIsReassignModalOpen(true)}
                 >
-                  Reassign
+                  Reassign agent
                 </Button>
               </div>
             )}

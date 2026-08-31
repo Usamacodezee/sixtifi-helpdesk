@@ -50,7 +50,6 @@ export interface OpenResolveRatioItem {
 export interface CompanyDashboardMetrics {
   companyId: string;
   open: number;
-  unassigned: number;
   inProgress: number;
   dueToday: number;
   slaAtRisk: number;
@@ -90,7 +89,6 @@ function buildVolumeSeries(seed: number, days = 30): VolumeDayPoint[] {
 const ACME: CompanyDashboardMetrics = {
   companyId: 'co-acme',
   open: 42,
-  unassigned: 8,
   inProgress: 17,
   dueToday: 9,
   slaAtRisk: 5,
@@ -130,7 +128,6 @@ const ACME: CompanyDashboardMetrics = {
 const NORTHWIND: CompanyDashboardMetrics = {
   companyId: 'co-northwind',
   open: 19,
-  unassigned: 4,
   inProgress: 8,
   dueToday: 4,
   slaAtRisk: 2,
@@ -162,7 +159,6 @@ const NORTHWIND: CompanyDashboardMetrics = {
 const CONTOSO: CompanyDashboardMetrics = {
   companyId: 'co-contoso',
   open: 11,
-  unassigned: 2,
   inProgress: 5,
   dueToday: 3,
   slaAtRisk: 1,

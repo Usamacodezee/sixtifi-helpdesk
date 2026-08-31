@@ -46,7 +46,6 @@ export interface SlaPolicyRule {
   responseTarget: string;
   resolutionTarget: string;
   warningThreshold: string;
-  status: 'Active' | 'Inactive';
 }
 
 export type EscalationNotifyKind = 'assignee' | 'team-lead' | 'employee';
@@ -54,7 +53,7 @@ export type EscalationNotifyKind = 'assignee' | 'team-lead' | 'employee';
 export interface EscalationLevel {
   id: string;
   level: 1 | 2 | 3;
-  trigger: '80% SLA At Risk' | '100% SLA Reached' | 'SLA Breached';
+  trigger: string;
   /** Who receives this escalation */
   notifyKind: EscalationNotifyKind;
   /** Set when notifyKind === 'employee' */
@@ -79,25 +78,49 @@ export interface SlaConfigChange {
   changedAt: string;
 }
 
-const FIXED_TRIGGERS: Record<1 | 2 | 3, EscalationLevel['trigger']> = {
-  1: '80% SLA At Risk',
-  2: '100% SLA Reached',
-  3: 'SLA Breached'
-};
+const THRESHOLD_OPTIONS = ['50%', '60%', '70%', '75%', '80%', '85%', '90%', '95%', '99%'] as const;
 
-function notifyDisplayLabel(esc: EscalationLevel): string {
-  if (esc.notifyKind === 'assignee') return 'Assignee';
-  if (esc.notifyKind === 'team-lead') return 'Team Lead';
-  return esc.notifyPersonName || 'Employee';
+function parseThresholdPercent(value: string): number {
+  const n = parseInt(value.replace('%', ''), 10);
+  return Number.isFinite(n) ? Math.min(99, Math.max(1, n)) : 80;
 }
 
-function defaultEscalationLevels(people: DirectoryPerson[]): EscalationLevel[] {
+function getCriticalThresholdOptions(atRiskThreshold: string): string[] {
+  const atRisk = parseThresholdPercent(atRiskThreshold);
+  return THRESHOLD_OPTIONS.filter(opt => parseThresholdPercent(opt) > atRisk);
+}
+
+function pickValidCriticalThreshold(atRiskThreshold: string, currentCritical: string): string {
+  const options = getCriticalThresholdOptions(atRiskThreshold);
+  if (options.includes(currentCritical)) return currentCritical;
+  return options[options.length - 1] || '95%';
+}
+
+function buildEscalationTriggers(
+  atRiskThreshold: string,
+  criticalThreshold: string
+): Record<1 | 2 | 3, string> {
+  const atRisk = parseThresholdPercent(atRiskThreshold);
+  const critical = parseThresholdPercent(criticalThreshold);
+  return {
+    1: `${atRisk}% SLA At Risk`,
+    2: `${critical}% SLA Critical`,
+    3: 'SLA Breached (100%)'
+  };
+}
+
+function defaultEscalationLevels(
+  people: DirectoryPerson[],
+  atRiskThreshold: string,
+  criticalThreshold: string
+): EscalationLevel[] {
+  const triggers = buildEscalationTriggers(atRiskThreshold, criticalThreshold);
   const first = people[0];
   return [
     {
       id: 'esc-1',
       level: 1,
-      trigger: FIXED_TRIGGERS[1],
+      trigger: triggers[1],
       notifyKind: 'assignee',
       notifyPersonId: '',
       notifyPersonName: '',
@@ -106,7 +129,7 @@ function defaultEscalationLevels(people: DirectoryPerson[]): EscalationLevel[] {
     {
       id: 'esc-2',
       level: 2,
-      trigger: FIXED_TRIGGERS[2],
+      trigger: triggers[2],
       notifyKind: 'team-lead',
       notifyPersonId: '',
       notifyPersonName: '',
@@ -115,13 +138,31 @@ function defaultEscalationLevels(people: DirectoryPerson[]): EscalationLevel[] {
     {
       id: 'esc-3',
       level: 3,
-      trigger: FIXED_TRIGGERS[3],
+      trigger: triggers[3],
       notifyKind: first ? 'employee' : 'assignee',
       notifyPersonId: first?.id || '',
       notifyPersonName: first?.name || '',
       channel: 'In-app + Email'
     }
   ];
+}
+
+function syncEscalationTriggers(
+  levels: EscalationLevel[],
+  atRiskThreshold: string,
+  criticalThreshold: string
+): EscalationLevel[] {
+  const triggers = buildEscalationTriggers(atRiskThreshold, criticalThreshold);
+  return levels.map(level => ({
+    ...level,
+    trigger: triggers[level.level]
+  }));
+}
+
+function notifyDisplayLabel(esc: EscalationLevel): string {
+  if (esc.notifyKind === 'assignee') return 'Assignee';
+  if (esc.notifyKind === 'team-lead') return 'Team Lead';
+  return esc.notifyPersonName || 'Employee';
 }
 
 export interface SlaEscalationViewProps {
@@ -149,23 +190,72 @@ export const SlaEscalationView: React.FC<SlaEscalationViewProps> = ({
 
   // Default SLA Policies
   const [slaRules, setSlaRules] = useState<SlaPolicyRule[]>([
-    { id: 'sla-urgent', priority: 'Urgent', responseTarget: '1 Working Hour', resolutionTarget: '4 Working Hours', warningThreshold: '80%', status: 'Active' },
-    { id: 'sla-high', priority: 'High', responseTarget: '4 Working Hours', resolutionTarget: '1 Working Day', warningThreshold: '80%', status: 'Active' },
-    { id: 'sla-medium', priority: 'Medium', responseTarget: '8 Working Hours', resolutionTarget: '2 Working Days', warningThreshold: '80%', status: 'Active' },
-    { id: 'sla-low', priority: 'Low', responseTarget: '1 Working Day', resolutionTarget: '3 Working Days', warningThreshold: '80%', status: 'Active' }
+    { id: 'sla-urgent', priority: 'Urgent', responseTarget: '1 Working Hour', resolutionTarget: '4 Working Hours', warningThreshold: '80%' },
+    { id: 'sla-high', priority: 'High', responseTarget: '4 Working Hours', resolutionTarget: '1 Working Day', warningThreshold: '80%' },
+    { id: 'sla-medium', priority: 'Medium', responseTarget: '8 Working Hours', resolutionTarget: '2 Working Days', warningThreshold: '80%' },
+    { id: 'sla-low', priority: 'Low', responseTarget: '1 Working Day', resolutionTarget: '3 Working Days', warningThreshold: '80%' }
   ]);
+
+  const [warningThreshold, setWarningThreshold] = useState('80%');
+  const [criticalThreshold, setCriticalThreshold] = useState('90%');
+
+  const criticalThresholdOptions = useMemo(
+    () => getCriticalThresholdOptions(warningThreshold),
+    [warningThreshold]
+  );
 
   // Fixed escalation levels (cannot add/remove) — enable/disable is per category
   const [escalationLevels, setEscalationLevels] = useState<EscalationLevel[]>(() =>
-    defaultEscalationLevels(employeesForCompany(companyId))
+    defaultEscalationLevels(employeesForCompany(companyId), '80%', '90%')
   );
 
   useEffect(() => {
-    setEscalationLevels(defaultEscalationLevels(employeesForCompany(companyId)));
+    setEscalationLevels(prev =>
+      syncEscalationTriggers(
+        defaultEscalationLevels(employeesForCompany(companyId), warningThreshold, criticalThreshold).map(
+          (defaults, index) => ({
+            ...defaults,
+            notifyKind: prev[index]?.notifyKind ?? defaults.notifyKind,
+            notifyPersonId: prev[index]?.notifyPersonId ?? defaults.notifyPersonId,
+            notifyPersonName: prev[index]?.notifyPersonName ?? defaults.notifyPersonName,
+            channel: prev[index]?.channel ?? defaults.channel
+          })
+        ),
+        warningThreshold,
+        criticalThreshold
+      )
+    );
   }, [companyId]);
 
-  // Default SLA warning threshold
-  const [warningThreshold, setWarningThreshold] = useState('80%');
+  const applyThresholdSync = (atRisk: string, critical: string) => {
+    setEscalationLevels(prev => syncEscalationTriggers(prev, atRisk, critical));
+  };
+
+  const handleAtRiskThresholdChange = (next: string) => {
+    const nextCritical = pickValidCriticalThreshold(next, criticalThreshold);
+    setWarningThreshold(next);
+    setCriticalThreshold(nextCritical);
+    setSlaRules(prev =>
+      prev.map(rule => ({
+        ...rule,
+        warningThreshold: next
+      }))
+    );
+    applyThresholdSync(next, nextCritical);
+  };
+
+  const handleCriticalThresholdChange = (next: string) => {
+    if (parseThresholdPercent(next) <= parseThresholdPercent(warningThreshold)) {
+      onShowToast(
+        'warning',
+        'Invalid critical threshold',
+        'Critical must be higher than at-risk and below 100%.'
+      );
+      return;
+    }
+    setCriticalThreshold(next);
+    applyThresholdSync(warningThreshold, next);
+  };
 
   // Admin config change history (who changed SLA targets, when)
   const [configChangeLog, setConfigChangeLog] = useState<SlaConfigChange[]>([
@@ -333,17 +423,6 @@ export const SlaEscalationView: React.FC<SlaEscalationViewProps> = ({
       )
     },
     {
-      key: 'status',
-      header: 'Status',
-      sortable: true,
-      render: () => (
-        <span className="badge" style={{ backgroundColor: '#ECFDF5', color: '#047857', borderColor: '#A7F3D0' }}>
-          <span className="badge-dot" style={{ backgroundColor: '#10B981' }} />
-          <span>Active</span>
-        </span>
-      )
-    },
-    {
       key: 'actions',
       header: '',
       width: '80px',
@@ -393,7 +472,7 @@ export const SlaEscalationView: React.FC<SlaEscalationViewProps> = ({
               onClick={() => {
                 appendConfigChange(
                   'Published SLA configuration changes',
-                  `Company: ${company.name} · Hours mode: ${getSlaHoursModeLabel(slaHoursMode)} · Warning: ${warningThreshold} · Active policies: ${slaRules.length}`
+                  `Company: ${company.name} · Hours mode: ${getSlaHoursModeLabel(slaHoursMode)} · At risk: ${warningThreshold} · Critical: ${criticalThreshold} · Active policies: ${slaRules.length}`
                 );
                 onShowToast('success', 'Changes Saved', `SLA configuration saved for ${company.name}.`);
               }}
@@ -500,16 +579,43 @@ export const SlaEscalationView: React.FC<SlaEscalationViewProps> = ({
               <Sliders size={18} style={{ color: 'var(--color-primary-600)' }} />
               SLA Defaults
             </div>
-            <div className="sla-card-subtitle">Warn teams before a request runs out of time.</div>
+            <div className="sla-card-subtitle">Configure when tickets enter at-risk and critical states.</div>
           </div>
         </div>
 
         <div className="sla-defaults-form-grid">
-          <FormField label="Warn at" hint="e.g. 80% means warn when 80% of the time limit is used">
-            <TextInput
+          <FormField
+            label="At risk threshold"
+            hint="Level 1 escalation fires when this much SLA time is used"
+          >
+            <SelectInput
               value={warningThreshold}
-              onChange={e => setWarningThreshold(e.target.value)}
-            />
+              onChange={e => handleAtRiskThresholdChange(e.target.value)}
+            >
+              {THRESHOLD_OPTIONS.filter(
+                opt => parseThresholdPercent(opt) < parseThresholdPercent(criticalThreshold)
+              ).map(opt => (
+                <option key={opt} value={opt}>
+                  {opt} of SLA time used
+                </option>
+              ))}
+            </SelectInput>
+          </FormField>
+
+          <FormField
+            label="Critical threshold"
+            hint="Level 2 escalation fires here — must be above at-risk and below 100%"
+          >
+            <SelectInput
+              value={criticalThreshold}
+              onChange={e => handleCriticalThresholdChange(e.target.value)}
+            >
+              {criticalThresholdOptions.map(opt => (
+                <option key={opt} value={opt}>
+                  {opt} of SLA time used
+                </option>
+              ))}
+            </SelectInput>
           </FormField>
         </div>
       </div>
@@ -536,22 +642,29 @@ export const SlaEscalationView: React.FC<SlaEscalationViewProps> = ({
           <div>
             <div className="sla-card-title" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
               <Clock size={18} style={{ color: '#D97706' }} />
-              SLA Warning Threshold
+              SLA Threshold Timeline
             </div>
-            <div className="sla-card-subtitle">Notify support teams before a ticket reaches its SLA limit.</div>
+            <div className="sla-card-subtitle">Visual guide for at-risk, critical, and breach escalation levels.</div>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span style={{ fontSize: '12px', fontWeight: 600 }}>Warning Threshold:</span>
-            <TextInput value={warningThreshold} style={{ width: '80px', textAlign: 'center' }} readOnly />
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <span style={{ fontSize: '12px', fontWeight: 600 }}>At risk:</span>
+              <TextInput value={warningThreshold} style={{ width: '72px', textAlign: 'center' }} readOnly />
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <span style={{ fontSize: '12px', fontWeight: 600 }}>Critical:</span>
+              <TextInput value={criticalThreshold} style={{ width: '72px', textAlign: 'center' }} readOnly />
+            </div>
           </div>
         </div>
 
         <div className="sla-warning-diagram">
           <div className="diagram-markers-row">
             <span>0% — SLA Started</span>
-            <span style={{ color: '#D97706', fontWeight: 700 }}>↑ {warningThreshold} — At Risk</span>
-            <span style={{ color: '#DC2626', fontWeight: 700 }}>100% — SLA Breached</span>
+            <span style={{ color: '#D97706', fontWeight: 700 }}>↑ {warningThreshold} — At Risk (Level 1)</span>
+            <span style={{ color: '#EA580C', fontWeight: 700 }}>↑ {criticalThreshold} — Critical (Level 2)</span>
+            <span style={{ color: '#DC2626', fontWeight: 700 }}>100% — Breached (Level 3)</span>
           </div>
 
           <div className="diagram-track-bar">
@@ -559,7 +672,9 @@ export const SlaEscalationView: React.FC<SlaEscalationViewProps> = ({
           </div>
 
           <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
-            At <strong>{warningThreshold}</strong> of the target resolution time, the ticket status indicator changes to <span style={{ color: '#D97706', fontWeight: 700 }}>SLA At Risk</span> and triggers Level 1 notifications.
+            At <strong>{warningThreshold}</strong> of the target resolution time, the ticket status changes to{' '}
+            <span style={{ color: '#D97706', fontWeight: 700 }}>SLA At Risk</span> and triggers Level 1 notifications.
+            Level 2 fires at <strong>{criticalThreshold}</strong> (critical warning). Level 3 fires at breach (100%).
           </div>
         </div>
       </div>

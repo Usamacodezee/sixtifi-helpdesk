@@ -2,15 +2,14 @@ import React from 'react';
 import { ArrowDown, Minus, ArrowUp, Flame } from 'lucide-react';
 import './Badge.css';
 
-export type TicketStatus = 'Open' | 'Assigned' | 'In Progress' | 'Resolved' | 'Closed' | 'Reopened' | 'Waiting for Employee';
+export type TicketStatus = 'Open' | 'Assigned' | 'In Progress' | 'Resolved' | 'Closed' | 'Reopened';
 export type TicketPriority = 'Low' | 'Medium' | 'High' | 'Urgent';
 
-/** Plain-language labels shown to users (employees and agents). */
+/** Readable labels shown in lists, filters, and badges. */
 export const PLAIN_STATUS_LABELS: Record<TicketStatus, string> = {
-  Open: 'Received',
-  Assigned: 'Assigned to support',
-  'In Progress': 'Being worked on',
-  'Waiting for Employee': 'Need your reply',
+  Open: 'Open',
+  Assigned: 'Assigned',
+  'In Progress': 'In progress',
   Resolved: 'Resolved',
   Closed: 'Closed',
   Reopened: 'Reopened'

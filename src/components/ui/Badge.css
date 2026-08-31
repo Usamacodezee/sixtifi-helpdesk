@@ -75,15 +75,6 @@
   background-color: var(--status-reopened-dot);
 }
 
-.badge-status-waitingforemployee {
-  background-color: #FEF3C7;
-  color: #92400E;
-  border-color: #FDE68A;
-}
-.badge-status-waitingforemployee .badge-dot {
-  background-color: #D97706;
-}
-
 /* Priority Badges */
 .badge-priority {
   border-radius: var(--radius-xs);

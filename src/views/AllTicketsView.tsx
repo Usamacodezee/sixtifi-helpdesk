@@ -84,7 +84,7 @@ export const AllTicketsView: React.FC<AllTicketsViewProps> = ({
   const [departmentFilter, setDepartmentFilter] = useState('all');
   const [locationFilter, setLocationFilter] = useState('all');
   const [slaFilter, setSlaFilter] = useState('all');
-  const [assigneeFilter, setAssigneeFilter] = useState<'all' | 'unassigned' | 'me'>('all');
+  const [assigneeFilter, setAssigneeFilter] = useState<'all' | 'me'>('all');
 
   // Selection & Bulk Action State
   const [selectedTicketIds, setSelectedTicketIds] = useState<string[]>([]);
@@ -148,7 +148,7 @@ export const AllTicketsView: React.FC<AllTicketsViewProps> = ({
       category: 'Attendance',
       priority: 'Medium',
       status: 'Assigned',
-      assignedTo: 'Unassigned',
+      assignedTo: 'Rahul Sharma',
       slaText: '5h remaining',
       slaState: 'on-track',
       lastUpdated: 'Today',
@@ -223,7 +223,7 @@ export const AllTicketsView: React.FC<AllTicketsViewProps> = ({
       category: 'Warehouse Ops',
       priority: 'Urgent',
       status: 'Open',
-      assignedTo: 'Unassigned',
+      assignedTo: 'Sam Okonkwo',
       slaText: '12m overdue',
       slaState: 'breached',
       lastUpdated: 'Yesterday',
@@ -266,7 +266,6 @@ export const AllTicketsView: React.FC<AllTicketsViewProps> = ({
   const filteredTickets = ticketsQueue.filter(ticket => {
     if (ticket.companyId !== companyId) return false;
 
-    if (assigneeFilter === 'unassigned' && ticket.assignedTo !== 'Unassigned') return false;
     if (assigneeFilter === 'me' && ticket.assignedTo !== 'Rahul Sharma') return false;
 
     // Search query constraint
@@ -360,22 +359,9 @@ export const AllTicketsView: React.FC<AllTicketsViewProps> = ({
       header: 'Assigned To',
       sortable: true,
       render: item => (
-        item.assignedTo === 'Unassigned' ? (
-          <button
-            className="inline-assign-btn"
-            onClick={e => {
-              e.stopPropagation();
-              setAssignModalTicket(item);
-            }}
-          >
-            <UserCheck size={12} />
-            Assign
-          </button>
-        ) : (
-          <span style={{ fontSize: '13px', fontWeight: 500, color: 'var(--text-primary)' }}>
-            {item.assignedTo}
-          </span>
-        )
+        <span style={{ fontSize: '13px', fontWeight: 500, color: 'var(--text-primary)' }}>
+          {item.assignedTo}
+        </span>
       )
     },
     {
@@ -654,7 +640,6 @@ export const AllTicketsView: React.FC<AllTicketsViewProps> = ({
                 <option value="open">{getPlainStatusLabel('Open')}</option>
                 <option value="assigned">{getPlainStatusLabel('Assigned')}</option>
                 <option value="inprogress">{getPlainStatusLabel('In Progress')}</option>
-                <option value="waitingforemployee">{getPlainStatusLabel('Waiting for Employee')}</option>
                 <option value="resolved">{getPlainStatusLabel('Resolved')}</option>
                 <option value="closed">{getPlainStatusLabel('Closed')}</option>
               </SelectInput>
@@ -663,11 +648,10 @@ export const AllTicketsView: React.FC<AllTicketsViewProps> = ({
             <div style={{ width: '150px' }}>
               <SelectInput
                 value={assigneeFilter}
-                onChange={e => setAssigneeFilter(e.target.value as 'all' | 'unassigned' | 'me')}
+                onChange={e => setAssigneeFilter(e.target.value as 'all' | 'me')}
               >
                 <option value="all">All Assignees</option>
                 <option value="me">Assigned to me</option>
-                <option value="unassigned">Unassigned</option>
               </SelectInput>
             </div>
 
@@ -792,7 +776,7 @@ export const AllTicketsView: React.FC<AllTicketsViewProps> = ({
 
             {assigneeFilter !== 'all' && (
               <span className="filter-chip-tag">
-                Assignee: {assigneeFilter === 'me' ? 'me' : 'unassigned'}
+                Assignee: me
                 <button className="chip-remove-btn" onClick={() => setAssigneeFilter('all')}><X size={12} /></button>
               </span>
             )}

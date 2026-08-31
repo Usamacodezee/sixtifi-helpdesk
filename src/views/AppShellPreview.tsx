@@ -105,7 +105,7 @@ export const AppShellPreview: React.FC<AppShellPreviewProps> = ({
       category: 'IT Procurement',
       department: 'Human Resources',
       requester: { name: 'David Miller', email: 'd.miller@sixtifi.com', initials: 'DM' },
-      assignee: { name: 'Unassigned', avatar: '--' },
+      assignee: { name: 'Neha Patel', avatar: 'NP' },
       status: 'Open',
       priority: 'High',
       created: '2h ago',
@@ -500,7 +500,6 @@ export const AppShellPreview: React.FC<AppShellPreviewProps> = ({
               <SelectInput defaultValue="alex">
                 <option value="alex">Alex Rivera (HR & IT Ops Lead)</option>
                 <option value="elena">Elena Rostova (Payroll Specialist)</option>
-                <option value="unassigned">Unassigned Queue</option>
               </SelectInput>
             </FormField>
 

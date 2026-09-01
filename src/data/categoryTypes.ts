@@ -1,6 +1,5 @@
 export type CategoryAudience = 'all' | 'employees' | 'groups';
 export type TicketPriorityLevel = 'Urgent' | 'High' | 'Medium' | 'Low';
-export type SlaTimeUnit = 'Minutes' | 'Hours' | 'Days';
 export type CategoryBusinessHoursMode = 'shift-hours' | '24-hour';
 export type NotificationChannel = 'in-app' | 'email' | 'both';
 
@@ -11,36 +10,23 @@ export interface CategoryAssignee {
   initials: string;
 }
 
-export interface PrioritySlaConfig {
-  enabled: boolean;
-  firstResponseValue: number;
-  firstResponseUnit: SlaTimeUnit;
-  resolutionValue: number;
-  resolutionUnit: SlaTimeUnit;
-}
-
 /** Per-category notification rules (company-scoped via the parent category). */
 export interface CategoryNotificationRules {
   enabled: boolean;
   channel: NotificationChannel;
-  /** Fixed on when enabled — request submitted */
   notifyEmpOnCreate: boolean;
-  /** Fixed on when enabled — someone replies */
   notifyEmpOnReply: boolean;
-  /** Fixed on when enabled — request resolved */
   notifyEmpOnResolve: boolean;
-  /** Fixed on when enabled — ticket assigned */
   notifyAgentOnAssign: boolean;
 }
 
 export interface CategoryAudienceConfig {
   type: CategoryAudience;
-  /** Selected employee ids when type === 'employees' */
   employeeIds: string[];
-  /** Selected group ids when type === 'groups' */
   groupIds: string[];
 }
 
+/** List/shell record — full config lives in categoryConfig versioning store. */
 export interface HelpdeskCategory {
   id: string;
   companyId: string;
@@ -51,72 +37,9 @@ export interface HelpdeskCategory {
   assignedTeam: string;
   status: 'Active' | 'Inactive';
   lastUpdated: string;
-  audience: CategoryAudienceConfig;
-  businessHours: CategoryBusinessHoursMode;
-  enableOnHold: boolean;
-  allowEmployeeReopen: boolean;
-  priorityChangeBy: {
-    assignee: boolean;
-    employee: boolean;
-  };
-  categoryAssignees: CategoryAssignee[];
-  addAssigneesAsFollowers: boolean;
-  prioritisationEnabled: boolean;
-  /**
-   * When true, SLA Escalation is off for this category. Priority and reply/resolve
-   * targets still apply; escalation notifications do not fire.
-   */
-  slaExempt: boolean;
-  /** Used when prioritisationEnabled is false — single SLA for all tickets in the category */
-  categorySla: PrioritySlaConfig;
-  prioritySla: Record<TicketPriorityLevel, PrioritySlaConfig>;
-  defaultPriority: TicketPriorityLevel;
-  escalateOnResponseBreach: boolean;
-  escalateOnResolutionBreach: boolean;
-  notifications: CategoryNotificationRules;
 }
 
 export const PRIORITY_LEVELS: TicketPriorityLevel[] = ['Urgent', 'High', 'Medium', 'Low'];
-
-export const DEFAULT_PRIORITY_SLA: Record<TicketPriorityLevel, PrioritySlaConfig> = {
-  Urgent: {
-    enabled: true,
-    firstResponseValue: 1,
-    firstResponseUnit: 'Hours',
-    resolutionValue: 4,
-    resolutionUnit: 'Hours'
-  },
-  High: {
-    enabled: true,
-    firstResponseValue: 4,
-    firstResponseUnit: 'Hours',
-    resolutionValue: 1,
-    resolutionUnit: 'Days'
-  },
-  Medium: {
-    enabled: true,
-    firstResponseValue: 8,
-    firstResponseUnit: 'Hours',
-    resolutionValue: 2,
-    resolutionUnit: 'Days'
-  },
-  Low: {
-    enabled: true,
-    firstResponseValue: 12,
-    firstResponseUnit: 'Hours',
-    resolutionValue: 4,
-    resolutionUnit: 'Days'
-  }
-};
-
-/** Flat SLA when ticket prioritisation is disabled for a category */
-export const DEFAULT_CATEGORY_SLA: PrioritySlaConfig = {
-  enabled: true,
-  firstResponseValue: 8,
-  firstResponseUnit: 'Hours',
-  resolutionValue: 2,
-  resolutionUnit: 'Days'
-};
 
 export const DEFAULT_CATEGORY_NOTIFICATIONS: CategoryNotificationRules = {
   enabled: true,

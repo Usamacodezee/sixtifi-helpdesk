@@ -9,7 +9,6 @@ import { AllTicketsView } from './views/AllTicketsView';
 import { MyAssignedTicketsView } from './views/MyAssignedTicketsView';
 import { TeamsView } from './views/TeamsView';
 import { CategoriesView } from './views/CategoriesView';
-import { SlaEscalationView } from './views/SlaEscalationView';
 import { SettingsView } from './views/SettingsView';
 import { HelpSupportView } from './views/HelpSupportView';
 import { AppShellPreview } from './views/AppShellPreview';
@@ -139,14 +138,6 @@ export function App() {
             companyId={companyId}
             onShowToast={addToast}
             onNavigateToAllTicketsWithCategoryFilter={(_categoryName) => setActiveNavId('all-tickets')}
-          />
-        );
-      case 'sla-escalation':
-        return (
-          <SlaEscalationView
-            companyId={companyId}
-            onCompanyChange={setCompanyId}
-            onShowToast={addToast}
           />
         );
       case 'settings':

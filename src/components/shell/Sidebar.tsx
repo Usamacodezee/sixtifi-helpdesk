@@ -6,7 +6,6 @@ import {
   UserCheck,
   Users,
   FolderTree,
-  Clock,
   Settings,
   HelpCircle,
   ChevronLeft,
@@ -38,8 +37,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
   const managementNavItems = [
     { id: 'teams', label: 'Teams', icon: Users },
-    { id: 'categories', label: 'Categories', icon: FolderTree },
-    { id: 'sla-escalation', label: 'SLA & Escalation', icon: Clock }
+    { id: 'categories', label: 'Categories', icon: FolderTree }
   ];
 
   const bottomNavItems = [

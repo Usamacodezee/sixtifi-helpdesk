@@ -253,7 +253,7 @@ export const AppShellPreview: React.FC<AppShellPreviewProps> = ({
       case 'my-assigned': return 'My Assigned Ticket Queue';
       case 'teams': return 'Helpdesk Support Teams';
       case 'categories': return 'Request Categories & Routing';
-      case 'sla-escalation': return 'SLA & Escalation Policies';
+      case 'categories': return 'Categories';
       case 'reports':
       case 'dashboard': return 'Helpdesk Dashboard';
       case 'settings': return 'Helpdesk Module Settings';

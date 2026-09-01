@@ -434,6 +434,25 @@
   line-height: 1.4;
 }
 
+.cat-sla-escalation-panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.cat-sla-panel-toolbar {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+@media (max-width: 768px) {
+  .cat-sla-panel-toolbar {
+    flex-direction: column;
+  }
+}
+
 .cat-sla-section {
   padding-top: 4px;
   border-top: 1px solid var(--border-default);

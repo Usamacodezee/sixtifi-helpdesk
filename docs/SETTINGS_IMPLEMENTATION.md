@@ -87,7 +87,7 @@ The Settings page is a **multi-tab admin screen** scoped per company/workspace. 
                              │
          ┌───────────────────┼───────────────────┐
          ▼                   ▼                   ▼
-  SlaEscalationView   QuickReplyPicker   ClosingReasonFields
+  CategoriesView (SLA hours read-only)   QuickReplyPicker   ClosingReasonFields
   (SLA hours mode)    (ticket reply UI)      (resolve/close modals)
 ```
 
@@ -602,7 +602,7 @@ Settings changes broadcast via `window.CustomEvent` so other views update withou
 
 | Consumer | Event listened |
 |----------|----------------|
-| `SlaEscalationView` | `sixtifi-sla-hours-mode-updated` |
+| `CategoriesView` (business hours) | `sixtifi-sla-hours-mode-updated` |
 | `QuickReplyPicker` | `sixtifi-quick-replies-updated` |
 | `ClosingReasonFields` | `sixtifi-closing-reasons-updated` |
 
@@ -793,9 +793,9 @@ interface ClosingReasonFieldsProps {
 
 Auto-selects first available reason if current selection becomes invalid.
 
-### `SlaEscalationView`
+### Category SLA (see `docs/SLA_ESCALATION_IMPLEMENTATION.md`)
 
-Reads `getSlaHoursMode(companyId)` and listens for `SLA_HOURS_UPDATED_EVENT` to refresh when settings change.
+SLA targets, escalation, and versioning are configured per category in `CategoriesView` via `CategorySlaEscalationPanel`. Company-wide SLA hours mode (`slaHoursMode`) is still set in General Settings.
 
 ---
 

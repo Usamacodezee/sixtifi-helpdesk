@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { PageHeader } from '../components/ui/PageHeader';
 import { Button, IconButton } from '../components/ui/Button';
 import {
@@ -35,18 +35,27 @@ import {
   CategoryNotificationRules,
   CATEGORY_BUSINESS_HOURS_OPTIONS,
   DEFAULT_CATEGORY_NOTIFICATIONS,
-  DEFAULT_CATEGORY_SLA,
-  DEFAULT_PRIORITY_SLA,
   HelpdeskCategory,
   NotificationChannel,
-  PRIORITY_LEVELS,
-  PrioritySlaConfig,
-  SlaTimeUnit,
-  TicketPriorityLevel,
   audienceLabel,
   businessHoursLabel,
   notificationChannelLabel
 } from '../data/categoryTypes';
+import { CategorySlaEscalationPanel } from '../components/categories/CategorySlaEscalationPanel';
+import { CategoryVersionBar } from '../components/categories/CategoryVersionBar';
+import {
+  CategoryConfigSnapshot,
+  CategorySlaSettings,
+  defaultSlaSettings,
+  getActiveCategoryVersion,
+  getCategoryConfigState,
+  getSlaSummaryLabel,
+  initCategoryConfigState,
+  publishCategoryVersion,
+  saveCategoryDraft,
+  shellFieldsFromSnapshot,
+  snapshotsEqual
+} from '../data/categoryConfig';
 import { getCompanyById, HELPDESK_COMPANIES } from '../data/companies';
 import { handlingTeamsForCompany } from '../data/helpdeskTeams';
 import {
@@ -150,9 +159,9 @@ export const CategoriesView: React.FC<CategoriesViewProps> = ({
 }) => {
   const [viewMode, setViewMode] = useState<'list' | 'create' | 'detail' | 'edit'>('list');
   const [selectedCategoryId, setSelectedCategoryId] = useState<string>('cat-attendance');
-  const [activeDetailTab, setActiveDetailTab] = useState<'overview' | 'notifications' | 'tickets' | 'activity'>(
-    'overview'
-  );
+  const [activeDetailTab, setActiveDetailTab] = useState<
+    'overview' | 'sla' | 'notifications' | 'tickets' | 'activity'
+  >('overview');
 
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -169,26 +178,32 @@ export const CategoriesView: React.FC<CategoriesViewProps> = ({
     Partial<Record<DirectoryGroupKind, boolean>>
   >({});
   const [formBusinessHours, setFormBusinessHours] = useState<CategoryBusinessHoursMode>('shift-hours');
-  const [formEnableOnHold, setFormEnableOnHold] = useState(false);
   const [formAllowReopen, setFormAllowReopen] = useState(false);
   const [formPriorityChangeBy, setFormPriorityChangeBy] = useState({
     assignee: true,
     employee: false
   });
-  const [formSlaExempt, setFormSlaExempt] = useState(false);
-  const [formPrioritisationEnabled, setFormPrioritisationEnabled] = useState(true);
-  const [formPrioritySla, setFormPrioritySla] = useState(DEFAULT_PRIORITY_SLA);
-  const [formCategorySla, setFormCategorySla] = useState<PrioritySlaConfig>({ ...DEFAULT_CATEGORY_SLA });
-  const [formDefaultPriority, setFormDefaultPriority] = useState<TicketPriorityLevel>('Medium');
-  const [formEscalateResponse, setFormEscalateResponse] = useState(false);
-  const [formEscalateResolution, setFormEscalateResolution] = useState(false);
+  const [draftCategoryId, setDraftCategoryId] = useState(() => `cat-${Date.now()}`);
   const [formStatus, setFormStatus] = useState<'Active' | 'Inactive'>('Active');
   const [formDefaultTeam, setFormDefaultTeam] = useState('HR Support');
   const [formNotifications, setFormNotifications] =
     useState<CategoryNotificationRules>(DEFAULT_CATEGORY_NOTIFICATIONS);
+  const [formSla, setFormSla] = useState<CategorySlaSettings>(() => defaultSlaSettings());
+  const [configVersions, setConfigVersions] = useState<import('../data/categoryConfig').CategoryVersion[]>([]);
+  const [configActiveVersion, setConfigActiveVersion] = useState<
+    import('../data/categoryConfig').CategoryVersion | undefined
+  >();
+  const configHydratedRef = useRef(false);
+  const skipConfigPersistRef = useRef(false);
+
+  const getCategoryDisplaySnapshot = (cat: HelpdeskCategory): CategoryConfigSnapshot => {
+    const active = getActiveCategoryVersion(cat.id);
+    if (active) return active.snapshot;
+    const people = employeesForCompany(cat.companyId);
+    return getCategoryConfigState(cat.id, cat.companyId, people).draft;
+  };
 
   const company = getCompanyById(companyId);
-  const formCompany = getCompanyById(formCompanyId);
   const directoryCompanyId =
     viewMode === 'create' || viewMode === 'edit' ? formCompanyId : companyId;
   const companyEmployees = useMemo(
@@ -199,36 +214,15 @@ export const CategoriesView: React.FC<CategoriesViewProps> = ({
     () => groupsForCompany(directoryCompanyId),
     [directoryCompanyId]
   );
-
-  const categoryConfigDefaults = {
-    audience: emptyAudience(),
-    businessHours: 'shift-hours' as CategoryBusinessHoursMode,
-    enableOnHold: false,
-    allowEmployeeReopen: false,
-    priorityChangeBy: { assignee: true, employee: false },
-    categoryAssignees: [] as CategoryAssignee[],
-    addAssigneesAsFollowers: false,
-    prioritisationEnabled: true,
-    slaExempt: false,
-    prioritySla: DEFAULT_PRIORITY_SLA,
-    categorySla: { ...DEFAULT_CATEGORY_SLA },
-    defaultPriority: 'Medium' as TicketPriorityLevel,
-    escalateOnResponseBreach: false,
-    escalateOnResolutionBreach: false,
-    notifications: { ...DEFAULT_CATEGORY_NOTIFICATIONS }
-  };
+  const formCompany = getCompanyById(formCompanyId);
 
   const withCategoryDefaults = (
     partial: Pick<
       HelpdeskCategory,
       'id' | 'companyId' | 'name' | 'description' | 'totalTickets' | 'openTickets' | 'assignedTeam' | 'status' | 'lastUpdated'
-    > &
-      Partial<HelpdeskCategory>
+    >
   ): HelpdeskCategory => ({
-    ...categoryConfigDefaults,
-    ...partial,
-    audience: partial.audience || emptyAudience(),
-    notifications: { ...DEFAULT_CATEGORY_NOTIFICATIONS, ...(partial.notifications || {}) }
+    ...partial
   });
 
   const [categories, setCategories] = useState<HelpdeskCategory[]>([
@@ -241,9 +235,7 @@ export const CategoriesView: React.FC<CategoriesViewProps> = ({
       totalTickets: 42,
       openTickets: 18,
       status: 'Active',
-      lastUpdated: 'Today',
-      allowEmployeeReopen: true,
-      audience: { type: 'all', employeeIds: [], groupIds: [] }
+      lastUpdated: 'Today'
     }),
     withCategoryDefaults({
       id: 'cat-leave',
@@ -254,8 +246,7 @@ export const CategoriesView: React.FC<CategoriesViewProps> = ({
       totalTickets: 28,
       openTickets: 10,
       status: 'Active',
-      lastUpdated: 'Today',
-      audience: { type: 'groups', employeeIds: [], groupIds: ['grp-hr'] }
+      lastUpdated: 'Today'
     }),
     withCategoryDefaults({
       id: 'cat-payroll',
@@ -263,12 +254,10 @@ export const CategoriesView: React.FC<CategoriesViewProps> = ({
       name: 'Payroll',
       description: 'Salary, payslip and payroll related requests',
       assignedTeam: 'Payroll Support',
-      enableOnHold: true,
       totalTickets: 31,
       openTickets: 12,
       status: 'Active',
-      lastUpdated: 'Yesterday',
-      audience: { type: 'groups', employeeIds: [], groupIds: ['grp-payroll', 'grp-hr'] }
+      lastUpdated: 'Yesterday'
     }),
     withCategoryDefaults({
       id: 'cat-hr',
@@ -287,12 +276,10 @@ export const CategoriesView: React.FC<CategoriesViewProps> = ({
       name: 'IT',
       description: 'System, access and technology requests',
       assignedTeam: 'IT Support',
-      escalateOnResponseBreach: true,
       totalTickets: 24,
       openTickets: 10,
       status: 'Active',
-      lastUpdated: 'Aug 14',
-      audience: { type: 'employees', employeeIds: ['emp-neha', 'emp-rahul'], groupIds: [] }
+      lastUpdated: 'Aug 14'
     }),
     withCategoryDefaults({
       id: 'cat-admin',
@@ -314,8 +301,7 @@ export const CategoriesView: React.FC<CategoriesViewProps> = ({
       totalTickets: 19,
       openTickets: 7,
       status: 'Active',
-      lastUpdated: 'Today',
-      audience: { type: 'groups', employeeIds: [], groupIds: ['grp-drivers', 'grp-warehouse'] }
+      lastUpdated: 'Today'
     }),
     withCategoryDefaults({
       id: 'cat-warehouse',
@@ -326,8 +312,7 @@ export const CategoriesView: React.FC<CategoriesViewProps> = ({
       totalTickets: 14,
       openTickets: 4,
       status: 'Active',
-      lastUpdated: 'Yesterday',
-      audience: { type: 'all', employeeIds: [], groupIds: [] }
+      lastUpdated: 'Yesterday'
     }),
     withCategoryDefaults({
       id: 'cat-store',
@@ -338,8 +323,7 @@ export const CategoriesView: React.FC<CategoriesViewProps> = ({
       totalTickets: 22,
       openTickets: 9,
       status: 'Active',
-      lastUpdated: 'Today',
-      audience: { type: 'groups', employeeIds: [], groupIds: ['grp-store'] }
+      lastUpdated: 'Today'
     }),
     withCategoryDefaults({
       id: 'cat-retail-hr',
@@ -350,10 +334,15 @@ export const CategoriesView: React.FC<CategoriesViewProps> = ({
       totalTickets: 8,
       openTickets: 3,
       status: 'Active',
-      lastUpdated: 'Aug 16',
-      audience: { type: 'employees', employeeIds: ['emp-mia', 'emp-dev'], groupIds: [] }
+      lastUpdated: 'Aug 16'
     })
   ]);
+
+  useEffect(() => {
+    categories.forEach(cat => {
+      initCategoryConfigState(cat.id, cat.companyId, employeesForCompany(cat.companyId));
+    });
+  }, [categories]);
 
   const companyCategories = categories.filter(c => c.companyId === companyId);
 
@@ -396,92 +385,36 @@ export const CategoriesView: React.FC<CategoriesViewProps> = ({
     );
   };
 
-  const resetForm = () => {
-    setFormCompanyId(companyId);
-    setFormCategoryName('');
-    setFormDescription('');
-    setFormAudience(emptyAudience());
-    setFormAudienceQuery('');
-    setFormGroupQueries(emptyGroupQueries());
-    setFormGroupDropdownOpen({});
-    setFormBusinessHours('shift-hours');
-    setFormEnableOnHold(false);
-    setFormAllowReopen(false);
-    setFormPriorityChangeBy({ assignee: true, employee: false });
-    setFormSlaExempt(false);
-    setFormPrioritisationEnabled(true);
-    setFormPrioritySla(DEFAULT_PRIORITY_SLA);
-    setFormCategorySla({ ...DEFAULT_CATEGORY_SLA });
-    setFormDefaultPriority('Medium');
-    setFormEscalateResponse(false);
-    setFormEscalateResolution(false);
-    setFormStatus('Active');
-    setFormDefaultTeam(pickDefaultHandlingTeam(companyId));
-    setFormNotifications({ ...DEFAULT_CATEGORY_NOTIFICATIONS });
+  const reloadConfigMeta = (categoryId: string, targetCompanyId: string) => {
+    const people = employeesForCompany(targetCompanyId);
+    const state = getCategoryConfigState(categoryId, targetCompanyId, people);
+    skipConfigPersistRef.current = true;
+    setConfigVersions(state.versions);
+    setConfigActiveVersion(getActiveCategoryVersion(categoryId));
+    configHydratedRef.current = true;
+    window.setTimeout(() => {
+      skipConfigPersistRef.current = false;
+    }, 0);
+    return state;
   };
 
-  const handleOpenCreateForm = () => {
-    resetForm();
-    setViewMode('create');
+  const loadDraftIntoForm = (draft: CategoryConfigSnapshot) => {
+    setFormCategoryName(draft.name);
+    setFormDescription(draft.description);
+    setFormDefaultTeam(draft.assignedTeam);
+    setFormAudience({
+      ...draft.audience,
+      employeeIds: [...draft.audience.employeeIds],
+      groupIds: [...draft.audience.groupIds]
+    });
+    setFormBusinessHours(draft.businessHours);
+    setFormAllowReopen(draft.allowEmployeeReopen);
+    setFormPriorityChangeBy({ ...draft.priorityChangeBy });
+    setFormNotifications(normalizeNotifications(draft.notifications));
+    setFormSla({ ...draft.sla });
   };
 
-  const handleOpenEditForm = (cat: HelpdeskCategory) => {
-    setSelectedCategoryId(cat.id);
-    setFormCompanyId(cat.companyId);
-    setFormCategoryName(cat.name);
-    setFormDescription(cat.description);
-    setFormAudience({ ...cat.audience, employeeIds: [...cat.audience.employeeIds], groupIds: [...cat.audience.groupIds] });
-    setFormAudienceQuery('');
-    setFormGroupQueries(emptyGroupQueries());
-    setFormGroupDropdownOpen({});
-    setFormBusinessHours(normalizeBusinessHours(cat.businessHours));
-    setFormEnableOnHold(cat.enableOnHold);
-    setFormAllowReopen(cat.allowEmployeeReopen);
-    setFormPriorityChangeBy({ ...cat.priorityChangeBy });
-    setFormSlaExempt(cat.slaExempt);
-    setFormPrioritisationEnabled(cat.prioritisationEnabled);
-    setFormPrioritySla({ ...DEFAULT_PRIORITY_SLA, ...cat.prioritySla });
-    setFormCategorySla({ ...(cat.categorySla || DEFAULT_CATEGORY_SLA) });
-    setFormDefaultPriority(cat.defaultPriority);
-    setFormEscalateResponse(cat.escalateOnResponseBreach);
-    setFormEscalateResolution(cat.escalateOnResolutionBreach);
-    setFormStatus(cat.status);
-    setFormDefaultTeam(cat.assignedTeam);
-    setFormNotifications(normalizeNotifications(cat.notifications));
-    setViewMode('edit');
-  };
-
-  const setAudienceType = (type: CategoryAudience) => {
-    setFormAudience(prev => ({
-      type,
-      employeeIds: type === 'employees' ? prev.employeeIds : [],
-      groupIds: type === 'groups' ? prev.groupIds : []
-    }));
-    setFormAudienceQuery('');
-    setFormGroupQueries(emptyGroupQueries());
-    setFormGroupDropdownOpen({});
-  };
-
-  const handleSaveCategoryForm = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!formCategoryName.trim()) return;
-
-    if (
-      formAudience.type === 'employees' &&
-      formAudience.employeeIds.length === 0
-    ) {
-      onShowToast('warning', 'Audience incomplete', 'Select at least one employee, or switch to Everyone.');
-      return;
-    }
-    if (formAudience.type === 'groups' && formAudience.groupIds.length === 0) {
-      onShowToast('warning', 'Audience incomplete', 'Select at least one group, or switch to Everyone.');
-      return;
-    }
-    if (!formDefaultTeam) {
-      onShowToast('warning', 'Handling team required', 'Select a team to route new requests in this category.');
-      return;
-    }
-
+  const buildDraftFromForm = (): CategoryConfigSnapshot => {
     const notifications: CategoryNotificationRules = formNotifications.enabled
       ? {
           enabled: true,
@@ -500,52 +433,167 @@ export const CategoriesView: React.FC<CategoriesViewProps> = ({
           notifyAgentOnAssign: false
         };
 
-    const sharedFields = {
+    return {
       name: formCategoryName.trim(),
       description: formDescription.trim() || 'Custom Helpdesk request category',
       assignedTeam: formDefaultTeam,
-      status: formStatus,
-      lastUpdated: 'Just now',
       audience: { ...formAudience },
       businessHours: formBusinessHours,
-      enableOnHold: formEnableOnHold,
       allowEmployeeReopen: formAllowReopen,
       priorityChangeBy: { ...formPriorityChangeBy },
-      categoryAssignees: [],
-      addAssigneesAsFollowers: false,
-      slaExempt: formSlaExempt,
-      prioritisationEnabled: formPrioritisationEnabled,
-      prioritySla: Object.fromEntries(
-        PRIORITY_LEVELS.map(p => [p, { ...formPrioritySla[p], enabled: true }])
-      ) as Record<TicketPriorityLevel, PrioritySlaConfig>,
-      categorySla: { ...formCategorySla, enabled: true },
-      defaultPriority: formDefaultPriority,
-      escalateOnResponseBreach: formSlaExempt ? false : formEscalateResponse,
-      escalateOnResolutionBreach: formSlaExempt ? false : formEscalateResolution,
-      notifications
+      notifications,
+      sla: { ...formSla }
+    };
+  };
+
+  const configCategoryId = viewMode === 'edit' ? selectedCategoryId : draftCategoryId;
+
+  const hasUnpublishedConfigChanges = useMemo(() => {
+    if (!configActiveVersion) return true;
+    try {
+      return !snapshotsEqual(buildDraftFromForm(), configActiveVersion.snapshot);
+    } catch {
+      return false;
+    }
+  }, [
+    configActiveVersion,
+    formCategoryName,
+    formDescription,
+    formDefaultTeam,
+    formAudience,
+    formBusinessHours,
+    formAllowReopen,
+    formPriorityChangeBy,
+    formNotifications,
+    formSla
+  ]);
+
+  useEffect(() => {
+    if (!configHydratedRef.current || skipConfigPersistRef.current) return;
+    if (viewMode !== 'create' && viewMode !== 'edit') return;
+    saveCategoryDraft(configCategoryId, buildDraftFromForm());
+  }, [
+    configCategoryId,
+    viewMode,
+    formCategoryName,
+    formDescription,
+    formDefaultTeam,
+    formAudience,
+    formBusinessHours,
+    formAllowReopen,
+    formPriorityChangeBy,
+    formNotifications,
+    formSla
+  ]);
+
+  const resetForm = () => {
+    setFormCompanyId(companyId);
+    setFormCategoryName('');
+    setFormDescription('');
+    setFormAudience(emptyAudience());
+    setFormAudienceQuery('');
+    setFormGroupQueries(emptyGroupQueries());
+    setFormGroupDropdownOpen({});
+    setFormBusinessHours('shift-hours');
+    setFormAllowReopen(false);
+    setFormPriorityChangeBy({ assignee: true, employee: false });
+    const nextDraftId = `cat-${Date.now()}`;
+    setDraftCategoryId(nextDraftId);
+    const people = employeesForCompany(companyId);
+    initCategoryConfigState(nextDraftId, companyId, people);
+    const state = reloadConfigMeta(nextDraftId, companyId);
+    loadDraftIntoForm(state.draft);
+    setFormStatus('Active');
+    setFormDefaultTeam(pickDefaultHandlingTeam(companyId));
+    setFormNotifications({ ...DEFAULT_CATEGORY_NOTIFICATIONS });
+    setFormSla(defaultSlaSettings(people));
+  };
+
+  const handleOpenCreateForm = () => {
+    resetForm();
+    setViewMode('create');
+  };
+
+  const handleOpenEditForm = (cat: HelpdeskCategory) => {
+    setSelectedCategoryId(cat.id);
+    setFormCompanyId(cat.companyId);
+    setFormStatus(cat.status);
+    const state = reloadConfigMeta(cat.id, cat.companyId);
+    loadDraftIntoForm(state.draft);
+    setFormAudienceQuery('');
+    setFormGroupQueries(emptyGroupQueries());
+    setFormGroupDropdownOpen({});
+    setViewMode('edit');
+  };
+
+  const setAudienceType = (type: CategoryAudience) => {
+    setFormAudience(prev => ({
+      type,
+      employeeIds: type === 'employees' ? prev.employeeIds : [],
+      groupIds: type === 'groups' ? prev.groupIds : []
+    }));
+    setFormAudienceQuery('');
+    setFormGroupQueries(emptyGroupQueries());
+    setFormGroupDropdownOpen({});
+  };
+
+  const handleCategoryPublished = () => {
+    const draft = buildDraftFromForm();
+    const shell = shellFieldsFromSnapshot(draft);
+    setCategories(prev =>
+      prev.map(c =>
+        c.id === configCategoryId ? { ...c, ...shell, companyId: formCompanyId, lastUpdated: 'Just now' } : c
+      )
+    );
+    reloadConfigMeta(configCategoryId, formCompanyId);
+  };
+
+  const handleSaveCategoryForm = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!formCategoryName.trim()) return;
+
+    if (formAudience.type === 'employees' && formAudience.employeeIds.length === 0) {
+      onShowToast('warning', 'Audience incomplete', 'Select at least one employee, or switch to Everyone.');
+      return;
+    }
+    if (formAudience.type === 'groups' && formAudience.groupIds.length === 0) {
+      onShowToast('warning', 'Audience incomplete', 'Select at least one group, or switch to Everyone.');
+      return;
+    }
+    if (!formDefaultTeam) {
+      onShowToast('warning', 'Handling team required', 'Select a team to route new requests in this category.');
+      return;
+    }
+
+    const categoryId = viewMode === 'create' ? draftCategoryId : selectedCategoryId;
+    const draft = buildDraftFromForm();
+    saveCategoryDraft(categoryId, draft);
+
+    const shell = {
+      ...shellFieldsFromSnapshot(draft),
+      status: formStatus,
+      lastUpdated: 'Just now'
     };
 
     if (viewMode === 'create') {
       const newCat: HelpdeskCategory = {
-        id: `cat-${Date.now()}`,
+        id: categoryId,
         companyId: formCompanyId,
         totalTickets: 0,
         openTickets: 0,
-        ...sharedFields
+        ...shell
       };
       setCategories(prev => [...prev, newCat]);
-      onShowToast(
-        'success',
-        'Category Created',
-        `"${newCat.name}" created for ${getCompanyById(formCompanyId).name}.`
-      );
+      if (configVersions.length === 0) {
+        publishCategoryVersion(categoryId, 'Helpdesk Admin', 'Initial category configuration');
+        reloadConfigMeta(categoryId, formCompanyId);
+      }
+      onShowToast('success', 'Category Created', `"${newCat.name}" draft saved. Publish a version to apply to new tickets.`);
     } else {
       setCategories(prev =>
-        prev.map(c =>
-          c.id === selectedCategoryId ? { ...c, companyId: formCompanyId, ...sharedFields } : c
-        )
+        prev.map(c => (c.id === selectedCategoryId ? { ...c, companyId: formCompanyId, ...shell } : c))
       );
-      onShowToast('success', 'Category Updated', `Category "${formCategoryName}" updated.`);
+      onShowToast('success', 'Draft Saved', 'Category draft saved. Publish a version to apply to new tickets.');
     }
 
     setViewMode('list');
@@ -584,16 +632,6 @@ export const CategoriesView: React.FC<CategoriesViewProps> = ({
       ...prev,
       groupIds: prev.groupIds.filter(x => x !== groupId)
     }));
-  };
-  const updatePrioritySla = (priority: TicketPriorityLevel, patch: Partial<PrioritySlaConfig>) => {
-    setFormPrioritySla(prev => ({
-      ...prev,
-      [priority]: { ...prev[priority], ...patch }
-    }));
-  };
-
-  const updateCategorySla = (patch: Partial<PrioritySlaConfig>) => {
-    setFormCategorySla(prev => ({ ...prev, ...patch }));
   };
 
   const updateNotification = (patch: Partial<CategoryNotificationRules>) => {
@@ -641,7 +679,7 @@ export const CategoriesView: React.FC<CategoriesViewProps> = ({
       header: 'Who can raise',
       render: item => (
         <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-primary)' }}>
-          {audienceLabel(item.audience)}
+          {audienceLabel(getCategoryDisplaySnapshot(item).audience)}
         </span>
       )
     },
@@ -1067,6 +1105,15 @@ export const CategoriesView: React.FC<CategoriesViewProps> = ({
           subtitle="Set who can raise requests, who handles them, and how quickly they should be answered."
         />
 
+        <CategoryVersionBar
+          categoryId={configCategoryId}
+          activeVersion={configActiveVersion}
+          versions={configVersions}
+          hasUnpublishedChanges={hasUnpublishedConfigChanges}
+          onPublished={handleCategoryPublished}
+          onShowToast={onShowToast}
+        />
+
         <div className="category-form-layout">
           <form onSubmit={handleSaveCategoryForm} className="category-form-card keka-category-form">
             <FormField label="Company" required hint="This category only applies to the selected company">
@@ -1127,17 +1174,6 @@ export const CategoriesView: React.FC<CategoriesViewProps> = ({
 
             <div className="cat-checkbox-block">
               <Checkbox
-                checked={formEnableOnHold}
-                onChange={e => setFormEnableOnHold(e.target.checked)}
-                label="Allow On Hold"
-              />
-              <p className="cat-checkbox-desc">
-                Agents can pause a ticket while waiting on someone else (for example, more info from the employee).
-              </p>
-            </div>
-
-            <div className="cat-checkbox-block">
-              <Checkbox
                 checked={formAllowReopen}
                 onChange={e => setFormAllowReopen(e.target.checked)}
                 label="Allow employees to reopen closed requests"
@@ -1147,211 +1183,39 @@ export const CategoriesView: React.FC<CategoriesViewProps> = ({
               </p>
             </div>
 
-            {formPrioritisationEnabled && (
-              <div className="cat-form-section">
-                <span className="cat-form-label">Who can change priority?</span>
-                <div className="cat-checkbox-row">
-                  <Checkbox
-                    checked={formPriorityChangeBy.assignee}
-                    onChange={e => setFormPriorityChangeBy(prev => ({ ...prev, assignee: e.target.checked }))}
-                    label="Assigned agent"
+            <div className="cat-form-section">
+              <span className="cat-form-label">Who can change priority?</span>
+              <div className="cat-checkbox-row">
+                <Checkbox
+                  checked={formPriorityChangeBy.assignee}
+                  onChange={e => setFormPriorityChangeBy(prev => ({ ...prev, assignee: e.target.checked }))}
+                  label="Assigned agent"
+                />
+                <label className="checkbox-container">
+                  <input
+                    type="checkbox"
+                    className="checkbox-input"
+                    checked={formPriorityChangeBy.employee}
+                    onChange={e => setFormPriorityChangeBy(prev => ({ ...prev, employee: e.target.checked }))}
                   />
-                  <label className="checkbox-container">
-                    <input
-                      type="checkbox"
-                      className="checkbox-input"
-                      checked={formPriorityChangeBy.employee}
-                      onChange={e => setFormPriorityChangeBy(prev => ({ ...prev, employee: e.target.checked }))}
-                    />
-                    <span>Requester</span>
-                    <InfoHint text="Let the person who raised the request change its priority" />
-                  </label>
-                </div>
+                  <span>Requester</span>
+                  <InfoHint text="Let the person who raised the request change its priority" />
+                </label>
               </div>
-            )}
+            </div>
 
             {renderNotificationsSection()}
 
-            <div className="cat-form-section cat-sla-section">
-              <div className="cat-follower-row" style={{ marginBottom: '14px' }}>
-                <ToggleSwitch
-                  checked={formPrioritisationEnabled}
-                  onChange={setFormPrioritisationEnabled}
-                  label="Use priority levels (Urgent / High / Medium / Low)"
-                />
-              </div>
-
-              {formPrioritisationEnabled ? (
-                <>
-                  <p className="cat-checkbox-desc" style={{ marginBottom: '12px' }}>
-                    Set how quickly each priority should get a first reply and a full resolution.
-                  </p>
-                  <div className="cat-sla-matrix">
-                  {PRIORITY_LEVELS.map(priority => {
-                    const row = formPrioritySla[priority];
-                    return (
-                      <div key={priority} className="cat-sla-row">
-                        <span className="cat-sla-priority-label">{priority}</span>
-                        <div className="cat-sla-field">
-                          <span className="cat-sla-field-label">First reply within</span>
-                          <div className="cat-sla-inputs">
-                            <TextInput
-                              type="number"
-                              value={String(row.firstResponseValue)}
-                              onChange={e =>
-                                updatePrioritySla(priority, {
-                                  firstResponseValue: Math.max(0, Number(e.target.value) || 0)
-                                })
-                              }
-                            />
-                            <SelectInput
-                              value={row.firstResponseUnit}
-                              onChange={e =>
-                                updatePrioritySla(priority, {
-                                  firstResponseUnit: e.target.value as SlaTimeUnit
-                                })
-                              }
-                            >
-                              <option value="Minutes">Minutes</option>
-                              <option value="Hours">Hours</option>
-                              <option value="Days">Days</option>
-                            </SelectInput>
-                          </div>
-                        </div>
-                        <div className="cat-sla-field">
-                          <span className="cat-sla-field-label">Resolve within</span>
-                          <div className="cat-sla-inputs">
-                            <TextInput
-                              type="number"
-                              value={String(row.resolutionValue)}
-                              onChange={e =>
-                                updatePrioritySla(priority, {
-                                  resolutionValue: Math.max(0, Number(e.target.value) || 0)
-                                })
-                              }
-                            />
-                            <SelectInput
-                              value={row.resolutionUnit}
-                              onChange={e =>
-                                updatePrioritySla(priority, {
-                                  resolutionUnit: e.target.value as SlaTimeUnit
-                                })
-                              }
-                            >
-                              <option value="Minutes">Minutes</option>
-                              <option value="Hours">Hours</option>
-                              <option value="Days">Days</option>
-                            </SelectInput>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-                </>
-              ) : (
-                <div className="cat-sla-flat">
-                  <p className="cat-checkbox-desc" style={{ marginBottom: '12px' }}>
-                    Priority is turned off. Every request in this category uses the same reply and resolve times below.
-                  </p>
-                  <div className="cat-sla-row cat-sla-row-flat">
-                    <div className="cat-sla-field">
-                      <span className="cat-sla-field-label">First reply within</span>
-                      <div className="cat-sla-inputs">
-                        <TextInput
-                          type="number"
-                          value={String(formCategorySla.firstResponseValue)}
-                          onChange={e =>
-                            updateCategorySla({
-                              firstResponseValue: Math.max(0, Number(e.target.value) || 0)
-                            })
-                          }
-                        />
-                        <SelectInput
-                          value={formCategorySla.firstResponseUnit}
-                          onChange={e =>
-                            updateCategorySla({ firstResponseUnit: e.target.value as SlaTimeUnit })
-                          }
-                        >
-                          <option value="Minutes">Minutes</option>
-                          <option value="Hours">Hours</option>
-                          <option value="Days">Days</option>
-                        </SelectInput>
-                      </div>
-                    </div>
-                    <div className="cat-sla-field">
-                      <span className="cat-sla-field-label">Resolve within</span>
-                      <div className="cat-sla-inputs">
-                        <TextInput
-                          type="number"
-                          value={String(formCategorySla.resolutionValue)}
-                          onChange={e =>
-                            updateCategorySla({
-                              resolutionValue: Math.max(0, Number(e.target.value) || 0)
-                            })
-                          }
-                        />
-                        <SelectInput
-                          value={formCategorySla.resolutionUnit}
-                          onChange={e =>
-                            updateCategorySla({ resolutionUnit: e.target.value as SlaTimeUnit })
-                          }
-                        >
-                          <option value="Minutes">Minutes</option>
-                          <option value="Hours">Hours</option>
-                          <option value="Days">Days</option>
-                        </SelectInput>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {formPrioritisationEnabled && (
-              <div className="cat-form-section">
-                <span className="cat-form-label">Default priority for new requests</span>
-                <div className="cat-radio-row" style={{ marginTop: '8px' }}>
-                  {PRIORITY_LEVELS.map(p => (
-                    <label key={p} className="cat-radio-option">
-                      <input
-                        type="radio"
-                        name="default-priority"
-                        checked={formDefaultPriority === p}
-                        onChange={() => setFormDefaultPriority(p)}
-                      />
-                      <span>{p}</span>
-                    </label>
-                  ))}
-                </div>
-              </div>
-            )}
-
             <div className="cat-form-section">
-              <div className="cat-follower-row" style={{ marginBottom: '8px' }}>
-                <ToggleSwitch
-                  checked={!formSlaExempt}
-                  onChange={enabled => setFormSlaExempt(!enabled)}
-                  label="Enable SLA Escalation"
-                />
-              </div>
-              <p className="cat-checkbox-desc" style={{ marginBottom: formSlaExempt ? 0 : '12px' }}>
-                {formSlaExempt
-                  ? 'Escalation is off for this category. Priority and reply/resolve times above still apply.'
-                  : 'Uses the three escalation levels from SLA & Escalation. Choose when to escalate below.'}
-              </p>
-              {!formSlaExempt && (
-                <div className="cat-escalation-list">
-                  <div className="cat-follower-row">
-                    <ToggleSwitch checked={formEscalateResponse} onChange={setFormEscalateResponse} />
-                    <span>Escalate if the first reply is late</span>
-                  </div>
-                  <div className="cat-follower-row">
-                    <ToggleSwitch checked={formEscalateResolution} onChange={setFormEscalateResolution} />
-                    <span>Escalate if the request is not resolved in time</span>
-                  </div>
-                </div>
-              )}
+              <span className="cat-form-label" style={{ display: 'block', marginBottom: 12 }}>
+                SLA & Escalation
+              </span>
+              <CategorySlaEscalationPanel
+                sla={formSla}
+                onChange={setFormSla}
+                companyId={formCompanyId}
+                onShowToast={onShowToast}
+              />
             </div>
 
             <div className="cat-form-two-col">
@@ -1389,7 +1253,7 @@ export const CategoriesView: React.FC<CategoriesViewProps> = ({
                 type="submit"
                 disabled={!formCategoryName.trim() || !formDefaultTeam}
               >
-                Save Category
+                Save draft
               </Button>
             </div>
           </form>
@@ -1419,11 +1283,10 @@ export const CategoriesView: React.FC<CategoriesViewProps> = ({
                 <strong>Alerts</strong> — choose what people get notified about.
               </div>
               <div>
-                <strong>Enable SLA Escalation</strong> — turn on per category; notify targets come from SLA &amp;
-                Escalation. Off keeps reply/resolve times but never escalates.
+                <strong>SLA & Escalation</strong> — configured per category with versioned publish workflow.
               </div>
               <div>
-                <strong>Reply & resolve times</strong> — by priority if enabled, or one shared time if not.
+                <strong>Reply & resolve times</strong> — by priority or one shared flat SLA per category.
               </div>
             </div>
           </div>
@@ -1433,7 +1296,14 @@ export const CategoriesView: React.FC<CategoriesViewProps> = ({
   }
 
   if (viewMode === 'detail' && selectedCategory) {
-    const notif = selectedCategory.notifications;
+    const activeConfigVersion = getActiveCategoryVersion(selectedCategory.id);
+    const activeSnapshot = getCategoryDisplaySnapshot(selectedCategory);
+    const configState = getCategoryConfigState(
+      selectedCategory.id,
+      selectedCategory.companyId,
+      employeesForCompany(selectedCategory.companyId)
+    );
+    const notif = activeSnapshot.notifications;
     return (
       <div className="categories-container">
         <PageHeader
@@ -1499,6 +1369,12 @@ export const CategoriesView: React.FC<CategoriesViewProps> = ({
             Overview
           </button>
           <button
+            className={`cat-tab-btn ${activeDetailTab === 'sla' ? 'is-active' : ''}`}
+            onClick={() => setActiveDetailTab('sla')}
+          >
+            SLA & Escalation
+          </button>
+          <button
             className={`cat-tab-btn ${activeDetailTab === 'notifications' ? 'is-active' : ''}`}
             onClick={() => setActiveDetailTab('notifications')}
           >
@@ -1537,38 +1413,32 @@ export const CategoriesView: React.FC<CategoriesViewProps> = ({
                 </div>
                 <div className="meta-row-item">
                   <span className="meta-label">Who can raise</span>
-                  <span className="meta-value">{audienceLabel(selectedCategory.audience)}</span>
+                  <span className="meta-value">{audienceLabel(activeSnapshot.audience)}</span>
                 </div>
                 <div className="meta-row-item">
                   <span className="meta-label">Business Hours</span>
-                  <span className="meta-value">{businessHoursLabel(normalizeBusinessHours(selectedCategory.businessHours))}</span>
+                  <span className="meta-value">{businessHoursLabel(normalizeBusinessHours(activeSnapshot.businessHours))}</span>
+                </div>
+                <div className="meta-row-item">
+                  <span className="meta-label">Category version</span>
+                  <span className="meta-value">{activeConfigVersion?.label ?? 'Not published yet'}</span>
+                </div>
+                <div className="meta-row-item">
+                  <span className="meta-label">SLA summary</span>
+                  <span className="meta-value">
+                    {getSlaSummaryLabel(activeSnapshot.sla)}
+                  </span>
                 </div>
                 <div className="meta-row-item">
                   <span className="meta-label">Escalation</span>
                   <span className="meta-value">
-                    {selectedCategory.slaExempt ? 'Off for this category' : 'On'}
-                  </span>
-                </div>
-                <div className="meta-row-item">
-                  <span className="meta-label">Prioritisation</span>
-                  <span className="meta-value">
-                    {selectedCategory.prioritisationEnabled ? 'Enabled' : 'Disabled (flat SLA)'}
-                  </span>
-                </div>
-                <div className="meta-row-item">
-                  <span className="meta-label">
-                    {selectedCategory.prioritisationEnabled ? 'Default Priority' : 'Category SLA'}
-                  </span>
-                  <span className="meta-value">
-                    {selectedCategory.prioritisationEnabled
-                      ? selectedCategory.defaultPriority
-                      : `${selectedCategory.categorySla?.firstResponseValue ?? 8}${String(selectedCategory.categorySla?.firstResponseUnit ?? 'Hours').charAt(0).toLowerCase()} / ${selectedCategory.categorySla?.resolutionValue ?? 2}${String(selectedCategory.categorySla?.resolutionUnit ?? 'Days').charAt(0).toLowerCase()}`}
+                    {activeSnapshot.sla.slaExempt ? 'Off for this category' : 'On'}
                   </span>
                 </div>
                 <div className="meta-row-item">
                   <span className="meta-label">Employee Reopen</span>
                   <span className="meta-value">
-                    {selectedCategory.allowEmployeeReopen ? 'Allowed' : 'Not allowed'}
+                    {activeSnapshot.allowEmployeeReopen ? 'Allowed' : 'Not allowed'}
                   </span>
                 </div>
                 <div className="meta-row-item">
@@ -1601,9 +1471,7 @@ export const CategoriesView: React.FC<CategoriesViewProps> = ({
                 <div className="pipeline-step-box">
                   <span className="pipeline-step-title">SLA Rule</span>
                   <span className="pipeline-step-val">
-                    {selectedCategory.slaExempt
-                      ? 'Targets apply · escalation off'
-                      : '4h Resolution Target'}
+                    {getSlaSummaryLabel(activeSnapshot.sla)}
                   </span>
                 </div>
                 <ArrowRight size={16} className="pipeline-arrow" />
@@ -1616,13 +1484,29 @@ export const CategoriesView: React.FC<CategoriesViewProps> = ({
           </div>
         )}
 
+        {activeDetailTab === 'sla' && (
+          <div className="category-detail-content-panel">
+            <div className="cat-sla-readonly-note" style={{ marginBottom: 12, fontSize: '13px', color: 'var(--text-secondary)' }}>
+              Published SLA settings for the active category version. Use Edit Category to change and publish a new version.
+            </div>
+            <div style={{ pointerEvents: 'none', opacity: 0.92 }}>
+              <CategorySlaEscalationPanel
+                sla={activeSnapshot.sla}
+                onChange={() => {}}
+                companyId={selectedCategory.companyId}
+                onShowToast={onShowToast}
+              />
+            </div>
+          </div>
+        )}
+
         {activeDetailTab === 'notifications' && (
           <div className="category-detail-content-panel">
             <div className="sidebar-info-card">
               <h3 className="text-h3">Notification rules</h3>
               <p className="text-body" style={{ color: 'var(--text-secondary)', marginBottom: 12 }}>
                 These alerts fire only for tickets in <strong>{selectedCategory.name}</strong> under{' '}
-                <strong>{company.name}</strong>. SLA warning and breach alerts are configured under SLA & Escalation.
+                <strong>{company.name}</strong>. SLA escalation alerts are configured in the SLA & Escalation tab.
               </p>
               <div className="meta-rows-list" style={{ marginBottom: 16 }}>
                 <div className="meta-row-item">
@@ -1664,15 +1548,18 @@ export const CategoriesView: React.FC<CategoriesViewProps> = ({
             <div className="sidebar-info-card">
               <h3 className="text-h3">Configuration Audit Log</h3>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '12px', fontSize: '12px' }}>
-                <div>
-                  • <strong>Category Created:</strong> {selectedCategory.name} initialized for {company.name}
-                </div>
-                <div>
-                  • <strong>Handling Team:</strong> {selectedCategory.assignedTeam}
-                </div>
-                <div>
-                  • <strong>Audience Updated:</strong> {audienceLabel(selectedCategory.audience)}
-                </div>
+                {configState.configChangeLog.length === 0 ? (
+                  <div>No published versions yet.</div>
+                ) : (
+                  configState.configChangeLog.map(entry => (
+                    <div key={entry.id}>
+                      • <strong>{entry.summary}:</strong> {entry.detail}
+                      <span style={{ color: 'var(--text-muted)', marginLeft: 6 }}>
+                        — {entry.changedBy}, {entry.changedAt}
+                      </span>
+                    </div>
+                  ))
+                )}
               </div>
             </div>
           </div>

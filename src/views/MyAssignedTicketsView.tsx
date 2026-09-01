@@ -9,11 +9,6 @@ import { EmptyState } from '../components/ui/EmptyState';
 import { Modal } from '../components/ui/Modal';
 import { BulkActionsBar } from '../components/ui/BulkActionsBar';
 import { QuickReplyPicker } from '../components/helpdesk/QuickReplyPicker';
-import { ClosingReasonFields, canSubmitClosingReason } from '../components/helpdesk/ClosingReasonFields';
-import {
-  getClosingReasonById,
-  getDefaultClosingReasonId
-} from '../data/closingReasons';
 import { HELPDESK_COMPANIES, getCompanyById } from '../data/companies';
 import { employeesForCompany } from '../data/directory';
 import {
@@ -30,14 +25,12 @@ import {
   MessageSquare,
   ArrowUpDown,
   ArrowUp,
-  Ban,
-  Copy,
   Bell,
   UserCheck
 } from 'lucide-react';
 import './MyAssignedTicketsView.css';
 
-type BulkLeadAction = 'assign' | 'priority' | 'escalate' | 'spam' | 'duplicate' | null;
+type BulkLeadAction = 'assign' | 'priority' | 'escalate' | null;
 
 export interface AssignedTicketItem {
   id: string;
@@ -91,8 +84,6 @@ export const MyAssignedTicketsView: React.FC<MyAssignedTicketsViewProps> = ({
   const [bulkAssignAgent, setBulkAssignAgent] = useState('Priya Shah');
   const [bulkPriority, setBulkPriority] = useState<TicketPriority>('High');
   const [bulkEscalateLevel, setBulkEscalateLevel] = useState(() => employeesForCompany(companyId)[0]?.name || '');
-  const [bulkCloseReasonId, setBulkCloseReasonId] = useState('');
-  const [bulkCloseComment, setBulkCloseComment] = useState('');
 
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
@@ -418,8 +409,6 @@ export const MyAssignedTicketsView: React.FC<MyAssignedTicketsViewProps> = ({
 
   const clearBulkModal = () => {
     setBulkAction(null);
-    setBulkCloseReasonId('');
-    setBulkCloseComment('');
   };
 
   const applyBulkToSelected = (updater: (ticket: AssignedTicketItem) => AssignedTicketItem) => {
@@ -448,40 +437,6 @@ export const MyAssignedTicketsView: React.FC<MyAssignedTicketsViewProps> = ({
         lastUpdated: 'Just now'
       }));
       onShowToast('warning', 'Escalation Triggered', `${count} tickets escalated to ${bulkEscalateLevel}.`);
-    }
-
-    if (bulkAction === 'spam') {
-      const reason = getClosingReasonById(bulkCloseReasonId);
-      const reasonLabel = reason?.label || 'Spam';
-
-      applyBulkToSelected(t => ({
-        ...t,
-        status: 'Closed',
-        slaText: 'Closed (Spam)',
-        lastUpdated: 'Just now'
-      }));
-      onShowToast(
-        'success',
-        'Closed as Spam',
-        `${count} tickets closed — ${reasonLabel}.${bulkCloseComment ? ` Note: ${bulkCloseComment}` : ''}`
-      );
-    }
-
-    if (bulkAction === 'duplicate') {
-      const reason = getClosingReasonById(bulkCloseReasonId);
-      const reasonLabel = reason?.label || 'Duplicate';
-
-      applyBulkToSelected(t => ({
-        ...t,
-        status: 'Closed',
-        slaText: 'Closed (Duplicate)',
-        lastUpdated: 'Just now'
-      }));
-      onShowToast(
-        'success',
-        'Closed as Duplicate',
-        `${count} tickets closed — ${reasonLabel}.${bulkCloseComment ? ` Note: ${bulkCloseComment}` : ''}`
-      );
     }
 
     setSelectedTicketIds([]);
@@ -636,30 +591,6 @@ export const MyAssignedTicketsView: React.FC<MyAssignedTicketsViewProps> = ({
         <Button variant="secondary" size="sm" leftIcon={<Bell size={14} />} onClick={() => setBulkAction('escalate')}>
           Escalate
         </Button>
-        <Button
-          variant="secondary"
-          size="sm"
-          leftIcon={<Ban size={14} />}
-          onClick={() => {
-            setBulkCloseReasonId(getDefaultClosingReasonId('spam'));
-            setBulkCloseComment('');
-            setBulkAction('spam');
-          }}
-        >
-          Close as Spam
-        </Button>
-        <Button
-          variant="secondary"
-          size="sm"
-          leftIcon={<Copy size={14} />}
-          onClick={() => {
-            setBulkCloseReasonId(getDefaultClosingReasonId('duplicate'));
-            setBulkCloseComment('');
-            setBulkAction('duplicate');
-          }}
-        >
-          Close as Duplicate
-        </Button>
       </BulkActionsBar>
 
       {/* SECTION 4 — MY TICKET QUEUE TABLE */}
@@ -810,64 +741,6 @@ export const MyAssignedTicketsView: React.FC<MyAssignedTicketsViewProps> = ({
             ))}
           </SelectInput>
         </FormField>
-      </Modal>
-
-      <Modal
-        isOpen={bulkAction === 'spam'}
-        onClose={clearBulkModal}
-        title={`Close as Spam — ${selectedTicketIds.length} Tickets`}
-        subtitle="Selected tickets will be marked Closed (Spam)."
-        footer={
-          <>
-            <Button variant="secondary" onClick={clearBulkModal}>Cancel</Button>
-            <Button
-              variant="danger"
-              onClick={handleConfirmBulkAction}
-              disabled={!canSubmitClosingReason(bulkCloseReasonId, bulkCloseComment)}
-            >
-              Close as Spam
-            </Button>
-          </>
-        }
-      >
-        <ClosingReasonFields
-          context="spam"
-          selectedReasonId={bulkCloseReasonId}
-          onReasonChange={setBulkCloseReasonId}
-          comment={bulkCloseComment}
-          onCommentChange={setBulkCloseComment}
-          commentLabel="Internal note"
-          commentPlaceholder="e.g. Bulk spam from external sender..."
-        />
-      </Modal>
-
-      <Modal
-        isOpen={bulkAction === 'duplicate'}
-        onClose={clearBulkModal}
-        title={`Close as Duplicate — ${selectedTicketIds.length} Tickets`}
-        subtitle="Selected tickets will be marked Closed (Duplicate)."
-        footer={
-          <>
-            <Button variant="secondary" onClick={clearBulkModal}>Cancel</Button>
-            <Button
-              variant="danger"
-              onClick={handleConfirmBulkAction}
-              disabled={!canSubmitClosingReason(bulkCloseReasonId, bulkCloseComment)}
-            >
-              Close as Duplicate
-            </Button>
-          </>
-        }
-      >
-        <ClosingReasonFields
-          context="duplicate"
-          selectedReasonId={bulkCloseReasonId}
-          onReasonChange={setBulkCloseReasonId}
-          comment={bulkCloseComment}
-          onCommentChange={setBulkCloseComment}
-          commentLabel="Link / note"
-          commentPlaceholder="e.g. Duplicate of TKT-4089"
-        />
       </Modal>
     </div>
   );

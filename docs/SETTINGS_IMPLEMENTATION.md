@@ -328,7 +328,7 @@ export interface QuickReply {
 ### Closing reason
 
 ```typescript
-export type ClosingReasonContext = 'resolve' | 'close' | 'spam' | 'duplicate';
+export type ClosingReasonContext = 'resolve' | 'close';
 
 export interface ClosingReason {
   id: string;
@@ -536,7 +536,7 @@ Toggle status or update fields. Same item shape in response.
 
 **Query params (optional):**
 
-- `context` — filter by `resolve | close | spam | duplicate`
+- `context` — filter by `resolve | close`
 - `status` — filter by `Active | Inactive`
 
 **Response `200`:**
@@ -736,7 +736,7 @@ onInsert(resolvedText) → inserted into reply composer
 ### Flow G: Agent resolves/closes ticket
 
 ```
-ClosingReasonFields rendered with context ('resolve' | 'close' | 'spam' | 'duplicate')
+ClosingReasonFields rendered with context ('resolve' | 'close')
         │
         ▼
 getClosingReasonsByContext(context) → Active reasons only
@@ -904,7 +904,7 @@ Import `SettingsView.css`. Key classes:
 ### Phase 5 — Closing reasons tab
 
 - [ ] Same CRUD pattern as quick replies
-- [ ] Context filter values: resolve, close, spam, duplicate
+- [ ] Context filter values: resolve, close
 - [ ] Comment required/optional field
 
 ### Phase 6 — Permissions tab
@@ -914,7 +914,7 @@ Import `SettingsView.css`. Key classes:
 ### Phase 7 — Consumers
 
 - [ ] `QuickReplyPicker` in ticket reply composer
-- [ ] `ClosingReasonFields` in resolve/close/spam/duplicate modals
+- [ ] `ClosingReasonFields` in resolve/close modals
 - [ ] SLA view listens for hours mode changes
 
 ### Phase 8 — Parent wiring
@@ -931,14 +931,12 @@ Import `SettingsView.css`. Key classes:
 
 See `DEFAULT_QUICK_REPLIES` in `src/data/quickReplies.ts` for full list. Categories covered: General, Attendance, Payroll. Scopes: public and internal.
 
-### Default closing reasons (9 items)
+### Default closing reasons (7 items)
 
 | Context | Count | Examples |
 |---------|-------|----------|
 | `resolve` | 4 | Fixed / Issue corrected, Information provided, Policy clarified, Request completed |
 | `close` | 3 | Closed — no action required, Cancelled by requester, No response from employee |
-| `spam` | 1 | Spam / invalid request |
-| `duplicate` | 1 | Duplicate ticket |
 
 ---
 

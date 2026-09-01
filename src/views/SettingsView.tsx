@@ -623,7 +623,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             <div>
               <span className="settings-card-title">Closing Reason Catalog</span>
               <div className="settings-card-subtitle">
-                Configure structured reasons shown when resolving, closing, or bulk-closing tickets as spam or duplicate.
+                Configure structured reasons shown when resolving or closing tickets.
               </div>
             </div>
             <Button variant="primary" size="sm" leftIcon={<Plus size={14} />} onClick={() => openClosingReasonModal()}>
@@ -828,7 +828,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         isOpen={isClosingReasonModalOpen}
         onClose={closeClosingReasonModal}
         title={editingClosingReason ? 'Edit Closing Reason' : 'Add Closing Reason'}
-        subtitle="Reasons appear in resolve, close, and bulk-close workflows based on context."
+        subtitle="Reasons appear in resolve and close workflows based on context."
         footer={
           <>
             <Button variant="secondary" onClick={closeClosingReasonModal}>Cancel</Button>
@@ -867,8 +867,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               >
                 <option value="resolve">Resolve</option>
                 <option value="close">Close</option>
-                <option value="spam">Spam</option>
-                <option value="duplicate">Duplicate</option>
               </SelectInput>
             </FormField>
 

@@ -1,4 +1,4 @@
-export type ClosingReasonContext = 'resolve' | 'close' | 'spam' | 'duplicate';
+export type ClosingReasonContext = 'resolve' | 'close';
 
 export interface ClosingReason {
   id: string;
@@ -11,6 +11,8 @@ export interface ClosingReason {
 
 export const CLOSING_REASONS_UPDATED_EVENT = 'sixtifi-closing-reasons-updated';
 const STORAGE_KEY = 'sixtifi-helpdesk-closing-reasons';
+
+const VALID_CONTEXTS: ClosingReasonContext[] = ['resolve', 'close'];
 
 export const DEFAULT_CLOSING_REASONS: ClosingReason[] = [
   {
@@ -68,38 +70,32 @@ export const DEFAULT_CLOSING_REASONS: ClosingReason[] = [
     context: 'close',
     requiresComment: true,
     status: 'Active'
-  },
-  {
-    id: 'cr-spam',
-    label: 'Spam / invalid request',
-    description: 'Not a valid helpdesk request.',
-    context: 'spam',
-    requiresComment: false,
-    status: 'Active'
-  },
-  {
-    id: 'cr-duplicate',
-    label: 'Duplicate ticket',
-    description: 'Same issue tracked on another ticket.',
-    context: 'duplicate',
-    requiresComment: false,
-    status: 'Active'
   }
 ];
+
+function sanitizeReasons(reasons: ClosingReason[]): ClosingReason[] {
+  return reasons.filter(item => VALID_CONTEXTS.includes(item.context));
+}
 
 export function getClosingReasons(): ClosingReason[] {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return DEFAULT_CLOSING_REASONS;
     const parsed = JSON.parse(raw) as ClosingReason[];
-    return Array.isArray(parsed) && parsed.length > 0 ? parsed : DEFAULT_CLOSING_REASONS;
+    if (!Array.isArray(parsed) || parsed.length === 0) return DEFAULT_CLOSING_REASONS;
+    const sanitized = sanitizeReasons(parsed);
+    if (sanitized.length === 0) return DEFAULT_CLOSING_REASONS;
+    if (sanitized.length !== parsed.length) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(sanitized));
+    }
+    return sanitized;
   } catch {
     return DEFAULT_CLOSING_REASONS;
   }
 }
 
 export function saveClosingReasons(reasons: ClosingReason[]): void {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(reasons));
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(sanitizeReasons(reasons)));
   window.dispatchEvent(new CustomEvent(CLOSING_REASONS_UPDATED_EVENT));
 }
 

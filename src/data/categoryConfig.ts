@@ -222,15 +222,25 @@ export function defaultFlatSla(): CategoryFlatSla {
   return { firstReplyValue: 8, firstReplyUnit: 'Hours', resolveValue: 2, resolveUnit: 'Days' };
 }
 
+export function normalizeSlaSettings(sla: CategorySlaSettings): CategorySlaSettings {
+  if (sla.slaExempt) {
+    return { ...sla, escalateOnResponseBreach: false, escalateOnResolutionBreach: false };
+  }
+  if (!sla.escalateOnResponseBreach && !sla.escalateOnResolutionBreach) {
+    return { ...sla, escalateOnResponseBreach: true, escalateOnResolutionBreach: true };
+  }
+  return sla;
+}
+
 export function defaultSlaSettings(people: DirectoryPerson[] = []): CategorySlaSettings {
   return {
     prioritisationEnabled: true,
     defaultPriority: 'Medium',
     flatSla: defaultFlatSla(),
     slaRules: defaultSlaRules(),
-    slaExempt: false,
-    escalateOnResponseBreach: false,
-    escalateOnResolutionBreach: false,
+    slaExempt: true,
+    escalateOnResponseBreach: true,
+    escalateOnResolutionBreach: true,
     warningThreshold: '80%',
     criticalThreshold: '90%',
     escalationLevels: defaultEscalationLevels(people)
@@ -274,7 +284,7 @@ export function defaultCategorySnapshot(
     allowEmployeeReopen: partial?.allowEmployeeReopen ?? false,
     priorityChangeBy: partial?.priorityChangeBy || { assignee: true, employee: false },
     notifications: { ...DEFAULT_CATEGORY_NOTIFICATIONS, ...(partial?.notifications || {}) },
-    sla: { ...baseSla, ...(slaPartial || {}) }
+    sla: normalizeSlaSettings({ ...baseSla, ...(slaPartial || {}) })
   };
 }
 

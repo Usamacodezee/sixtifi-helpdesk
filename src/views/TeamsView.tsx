@@ -60,7 +60,7 @@ export const TeamsView: React.FC<TeamsViewProps> = ({
   // Navigation Mode ('list' | 'create' | 'detail' | 'edit')
   const [viewMode, setViewMode] = useState<'list' | 'create' | 'detail' | 'edit'>('list');
   const [selectedTeamId, setSelectedTeamId] = useState<string>('team-hr');
-  const [activeDetailTab, setActiveDetailTab] = useState<'overview' | 'members' | 'categories' | 'tickets' | 'activity'>('overview');
+  const [activeDetailTab, setActiveDetailTab] = useState<'overview' | 'members' | 'tickets'>('overview');
 
   // Search & Filter State
   const [searchQuery, setSearchQuery] = useState('');
@@ -789,14 +789,8 @@ export const TeamsView: React.FC<TeamsViewProps> = ({
           <button className={`team-tab-btn ${activeDetailTab === 'members' ? 'is-active' : ''}`} onClick={() => setActiveDetailTab('members')}>
             Members ({selectedTeam.membersCount})
           </button>
-          <button className={`team-tab-btn ${activeDetailTab === 'categories' ? 'is-active' : ''}`} onClick={() => setActiveDetailTab('categories')}>
-            Category
-          </button>
           <button className={`team-tab-btn ${activeDetailTab === 'tickets' ? 'is-active' : ''}`} onClick={() => onNavigateToAllTicketsWithFilter(selectedTeam.name)}>
             Tickets ({selectedTeam.openTickets})
-          </button>
-          <button className={`team-tab-btn ${activeDetailTab === 'activity' ? 'is-active' : ''}`} onClick={() => setActiveDetailTab('activity')}>
-            Activity History
           </button>
         </div>
 
@@ -813,14 +807,6 @@ export const TeamsView: React.FC<TeamsViewProps> = ({
                   <span className="meta-value">{selectedTeam.teamLead}</span>
                 </div>
                 <div className="meta-row-item">
-                  <span className="meta-label">Handled Categories</span>
-                  <span className="meta-value">
-                    {selectedTeam.categories.length > 0
-                      ? selectedTeam.categories.join(', ')
-                      : 'Not assigned — set from Categories'}
-                  </span>
-                </div>
-                <div className="meta-row-item">
                   <span className="meta-label">Total Assigned Members</span>
                   <span className="meta-value">{selectedTeam.membersCount} Specialists</span>
                 </div>
@@ -830,22 +816,8 @@ export const TeamsView: React.FC<TeamsViewProps> = ({
                 </div>
               </div>
             </div>
-          </div>
-        )}
 
-        {activeDetailTab === 'members' && (
-          <div className="team-detail-content-panel">
-            <Table
-              columns={memberColumns}
-              data={teamMembersList}
-              keyExtractor={m => m.id}
-            />
-          </div>
-        )}
-
-        {activeDetailTab === 'categories' && (
-          <div className="team-detail-content-panel">
-            <div className="sidebar-info-card">
+            <div className="sidebar-info-card" style={{ marginTop: 16 }}>
               <h3 className="text-h3">Handled categories</h3>
               <div style={{ display: 'flex', gap: '8px', marginTop: '12px', flexWrap: 'wrap' }}>
                 {selectedTeam.categories.length > 0 ? (
@@ -870,13 +842,9 @@ export const TeamsView: React.FC<TeamsViewProps> = ({
                 </p>
               )}
             </div>
-          </div>
-        )}
 
-        {activeDetailTab === 'activity' && (
-          <div className="team-detail-content-panel">
-            <div className="sidebar-info-card">
-              <h3 className="text-h3">Team Configuration History</h3>
+            <div className="sidebar-info-card" style={{ marginTop: 16 }}>
+              <h3 className="text-h3">Activity history</h3>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '12px', fontSize: '12px' }}>
                 <div>• <strong>Team Lead Assigned:</strong> Priya Shah appointed as Team Lead (Aug 01, 2026)</div>
                 <div>• <strong>Categories linked:</strong> Handling team set from Categories (Aug 05, 2026)</div>
@@ -885,6 +853,17 @@ export const TeamsView: React.FC<TeamsViewProps> = ({
             </div>
           </div>
         )}
+
+        {activeDetailTab === 'members' && (
+          <div className="team-detail-content-panel">
+            <Table
+              columns={memberColumns}
+              data={teamMembersList}
+              keyExtractor={m => m.id}
+            />
+          </div>
+        )}
+
       </div>
     );
   }

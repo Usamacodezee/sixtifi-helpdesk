@@ -55,14 +55,13 @@ export const CategorySlaEscalationPanel: React.FC<CategorySlaEscalationPanelProp
 
   const patchSla = (patch: Partial<CategorySlaSettings>) => onChange({ ...sla, ...patch });
 
-  const applyThresholdSync = (atRisk: string, critical: string) => {
-    patchSla({ escalationLevels: syncEscalationTriggers(sla.escalationLevels, atRisk, critical) });
-  };
-
   const handleAtRiskThresholdChange = (next: string) => {
     const nextCritical = pickValidCriticalThreshold(next, sla.criticalThreshold);
-    patchSla({ warningThreshold: next, criticalThreshold: nextCritical });
-    applyThresholdSync(next, nextCritical);
+    patchSla({
+      warningThreshold: next,
+      criticalThreshold: nextCritical,
+      escalationLevels: syncEscalationTriggers(sla.escalationLevels, next, nextCritical)
+    });
   };
 
   const handleCriticalThresholdChange = (next: string) => {
@@ -70,9 +69,61 @@ export const CategorySlaEscalationPanel: React.FC<CategorySlaEscalationPanelProp
       onShowToast('warning', 'Invalid critical threshold', 'Critical must be higher than at-risk and below 100%.');
       return;
     }
-    patchSla({ criticalThreshold: next });
-    applyThresholdSync(sla.warningThreshold, next);
+    patchSla({
+      criticalThreshold: next,
+      escalationLevels: syncEscalationTriggers(sla.escalationLevels, sla.warningThreshold, next)
+    });
   };
+
+  const handleEscalationEnabledChange = (enabled: boolean) => {
+    patchSla({
+      slaExempt: !enabled,
+      escalateOnResponseBreach: enabled,
+      escalateOnResolutionBreach: enabled
+    });
+  };
+
+  const handleEscalateOnResponseBreachChange = (enabled: boolean) => {
+    if (!enabled && !sla.escalateOnResolutionBreach) {
+      onShowToast('warning', 'Keep one escalation rule', 'At least one escalation trigger must stay enabled.');
+      return;
+    }
+    patchSla({ escalateOnResponseBreach: enabled });
+  };
+
+  const handleEscalateOnResolutionBreachChange = (enabled: boolean) => {
+    if (!enabled && !sla.escalateOnResponseBreach) {
+      onShowToast('warning', 'Keep one escalation rule', 'At least one escalation trigger must stay enabled.');
+      return;
+    }
+    patchSla({ escalateOnResolutionBreach: enabled });
+  };
+
+  const renderDefaultPriorityPicker = () => (
+    <div style={{ marginTop: 16 }}>
+      <span className="cat-form-label">
+        {sla.prioritisationEnabled ? 'Default priority for new requests' : 'Fixed priority for all tickets'}
+      </span>
+      <p className="cat-checkbox-desc" style={{ marginTop: 4 }}>
+        {sla.prioritisationEnabled
+          ? 'Used when a requester does not choose a priority.'
+          : 'Every ticket in this category uses this priority when prioritisation is off.'}
+      </p>
+      <div className="cat-radio-row" style={{ marginTop: 8 }}>
+        {PRIORITY_LEVELS.map(p => (
+          <label key={p} className="cat-radio-option">
+            <input
+              type="radio"
+              name="default-priority-sla"
+              checked={sla.defaultPriority === p}
+              onChange={() => patchSla({ defaultPriority: p as TicketPriorityLevel })}
+            />
+            <span>{p}</span>
+          </label>
+        ))}
+      </div>
+    </div>
+  );
 
   const criticalThresholdOptions = getCriticalThresholdOptions(sla.warningThreshold);
 
@@ -157,22 +208,7 @@ export const CategorySlaEscalationPanel: React.FC<CategorySlaEscalationPanelProp
                 </div>
               ))}
             </div>
-            <div style={{ marginTop: 16 }}>
-              <span className="cat-form-label">Default priority for new requests</span>
-              <div className="cat-radio-row" style={{ marginTop: 8 }}>
-                {PRIORITY_LEVELS.map(p => (
-                  <label key={p} className="cat-radio-option">
-                    <input
-                      type="radio"
-                      name="default-priority-sla"
-                      checked={sla.defaultPriority === p}
-                      onChange={() => patchSla({ defaultPriority: p as TicketPriorityLevel })}
-                    />
-                    <span>{p}</span>
-                  </label>
-                ))}
-              </div>
-            </div>
+            {renderDefaultPriorityPicker()}
           </>
         ) : (
           <div className="cat-sla-flat" style={{ marginTop: 12 }}>
@@ -226,6 +262,7 @@ export const CategorySlaEscalationPanel: React.FC<CategorySlaEscalationPanelProp
                 </div>
               </div>
             </div>
+            {renderDefaultPriorityPicker()}
           </div>
         )}
       </div>
@@ -241,13 +278,7 @@ export const CategorySlaEscalationPanel: React.FC<CategorySlaEscalationPanelProp
         </div>
         <ToggleSwitch
           checked={!sla.slaExempt}
-          onChange={enabled =>
-            patchSla({
-              slaExempt: !enabled,
-              escalateOnResponseBreach: enabled ? sla.escalateOnResponseBreach : false,
-              escalateOnResolutionBreach: enabled ? sla.escalateOnResolutionBreach : false
-            })
-          }
+          onChange={handleEscalationEnabledChange}
           label="Enable SLA escalation"
         />
         {!sla.slaExempt && (
@@ -256,14 +287,14 @@ export const CategorySlaEscalationPanel: React.FC<CategorySlaEscalationPanelProp
               <div className="cat-follower-row">
                 <ToggleSwitch
                   checked={sla.escalateOnResponseBreach}
-                  onChange={v => patchSla({ escalateOnResponseBreach: v })}
+                  onChange={handleEscalateOnResponseBreachChange}
                 />
                 <span>Escalate if the first reply is late</span>
               </div>
               <div className="cat-follower-row">
                 <ToggleSwitch
                   checked={sla.escalateOnResolutionBreach}
-                  onChange={v => patchSla({ escalateOnResolutionBreach: v })}
+                  onChange={handleEscalateOnResolutionBreachChange}
                 />
                 <span>Escalate if the request is not resolved in time</span>
               </div>

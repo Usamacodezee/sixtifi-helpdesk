@@ -51,6 +51,7 @@ import {
   getCategoryConfigState,
   getSlaSummaryLabel,
   initCategoryConfigState,
+  normalizeSlaSettings,
   publishCategoryVersion,
   saveCategoryDraft,
   shellFieldsFromSnapshot,
@@ -411,7 +412,7 @@ export const CategoriesView: React.FC<CategoriesViewProps> = ({
     setFormAllowReopen(draft.allowEmployeeReopen);
     setFormPriorityChangeBy({ ...draft.priorityChangeBy });
     setFormNotifications(normalizeNotifications(draft.notifications));
-    setFormSla({ ...draft.sla });
+    setFormSla(normalizeSlaSettings({ ...draft.sla }));
   };
 
   const buildDraftFromForm = (): CategoryConfigSnapshot => {
@@ -442,7 +443,7 @@ export const CategoriesView: React.FC<CategoriesViewProps> = ({
       allowEmployeeReopen: formAllowReopen,
       priorityChangeBy: { ...formPriorityChangeBy },
       notifications,
-      sla: { ...formSla }
+      sla: normalizeSlaSettings({ ...formSla })
     };
   };
 

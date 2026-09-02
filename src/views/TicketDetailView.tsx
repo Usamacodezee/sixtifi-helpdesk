@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { PageHeader } from '../components/ui/PageHeader';
 import { Button, IconButton } from '../components/ui/Button';
 import { StatusBadge, PriorityBadge, TicketStatus, TicketPriority, getPlainStatusLabel } from '../components/ui/Badge';
-import { FormField, SelectInput, TextareaInput } from '../components/ui/FormControls';
+import { FormField, SelectInput, TextareaInput, TextInput } from '../components/ui/FormControls';
 import { Modal } from '../components/ui/Modal';
 import { QuickReplyPicker } from '../components/helpdesk/QuickReplyPicker';
 import { ClosingReasonFields, canSubmitClosingReason } from '../components/helpdesk/ClosingReasonFields';
@@ -23,7 +23,9 @@ import {
   ArrowLeft,
   UserCheck,
   ShieldAlert,
-  User
+  User,
+  Pencil,
+  Trash2
 } from 'lucide-react';
 import './TicketDetailView.css';
 
@@ -71,7 +73,15 @@ export const TicketDetailView: React.FC<TicketDetailViewProps> = ({
 
   // Ticket Metadata State
   const [status, setStatus] = useState<TicketStatus>('In Progress');
+  const [title, setTitle] = useState('Missing attendance punch for Aug 17');
+  const [description, setDescription] = useState(
+    'My attendance for August 17 is showing as absent even though I worked the full shift. Please check the attendance record.'
+  );
   const [priority, setPriority] = useState<TicketPriority>('High');
+  const [ticketAttachments, setTicketAttachments] = useState<{ name: string; size: string }[]>([
+    { name: 'attendance-aug17.png', size: '245 KB' },
+    { name: 'attendance-record.pdf', size: '182 KB' }
+  ]);
   const assignedTeam = 'HR Support';
   const [assignedAgent, setAssignedAgent] = useState('Rahul Sharma');
 
@@ -81,6 +91,15 @@ export const TicketDetailView: React.FC<TicketDetailViewProps> = ({
   const [isCloseModalOpen, setIsCloseModalOpen] = useState(false);
   const [isReopenModalOpen, setIsReopenModalOpen] = useState(false);
   const [isReassignModalOpen, setIsReassignModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+
+  // Edit ticket form (modal)
+  const [editTitle, setEditTitle] = useState('');
+  const [editDescription, setEditDescription] = useState('');
+  const [editPriority, setEditPriority] = useState<TicketPriority>('High');
+  const [editAttachments, setEditAttachments] = useState<{ name: string; size: string }[]>([]);
+
+  const canEditTicket = status !== 'Resolved' && status !== 'Closed';
 
   // Form states for modals
   const [resolveReasonId, setResolveReasonId] = useState(() => getDefaultClosingReasonId('resolve'));
@@ -288,6 +307,52 @@ export const TicketDetailView: React.FC<TicketDetailViewProps> = ({
     onShowToast('info', 'Agent Reassigned', `Ticket ${ticketId} reassigned to ${newAgentSelection}.`);
   };
 
+  const openEditModal = () => {
+    setEditTitle(title);
+    setEditDescription(description);
+    setEditPriority(priority);
+    setEditAttachments(ticketAttachments.map(file => ({ ...file })));
+    setIsEditModalOpen(true);
+  };
+
+  const handleAddEditAttachment = () => {
+    const sampleFiles = [
+      { name: 'attendance-proof-attachment.pdf', size: '310 KB' },
+      { name: 'shift-log-export.xlsx', size: '128 KB' },
+      { name: 'badge-swipe-report.png', size: '96 KB' }
+    ];
+    const next = sampleFiles[editAttachments.length % sampleFiles.length];
+    setEditAttachments(prev => [...prev, next]);
+  };
+
+  const handleSaveTicketEdit = () => {
+    if (!editTitle.trim()) {
+      onShowToast('warning', 'Subject required', 'Enter a ticket subject.');
+      return;
+    }
+
+    const actor = userRole === 'agent' ? CURRENT_ACTOR.agent : CURRENT_ACTOR.employee;
+    if (editTitle.trim() !== title) {
+      appendAudit(`Subject updated: "${title}" → "${editTitle.trim()}"`, actor);
+    }
+    if (editDescription.trim() !== description) {
+      appendAudit('Description updated', actor);
+    }
+    if (editPriority !== priority) {
+      appendAudit(`Priority changed: ${priority} → ${editPriority}`, actor);
+    }
+    if (JSON.stringify(editAttachments) !== JSON.stringify(ticketAttachments)) {
+      appendAudit('Attachments updated', actor);
+    }
+
+    setTitle(editTitle.trim());
+    setDescription(editDescription.trim());
+    setPriority(editPriority);
+    setTicketAttachments(editAttachments.map(file => ({ ...file })));
+    setIsEditModalOpen(false);
+    onShowToast('success', 'Ticket Updated', 'Ticket details saved.');
+  };
+
   // Filter messages based on employee view (hide internal notes from employee)
   const visibleMessages = messages.filter(msg => {
     if (userRole === 'employee' && msg.isInternalNote) return false;
@@ -310,7 +375,7 @@ export const TicketDetailView: React.FC<TicketDetailViewProps> = ({
           { label: backLabel || (userRole === 'employee' ? 'My Requests' : 'All Tickets'), onClick: onBack },
           { label: ticketId }
         ]}
-        title="Missing attendance punch for Aug 17"
+        title={title}
         subtitle={`Ticket ${ticketId} · Created Aug 17, 2026 at 10:24 AM`}
         badge={
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -329,7 +394,18 @@ export const TicketDetailView: React.FC<TicketDetailViewProps> = ({
               {backLabel ? `Back to ${backLabel}` : userRole === 'employee' ? 'Back to My Requests' : 'Back to Tickets'}
             </Button>
 
-            {status !== 'Resolved' && status !== 'Closed' && (
+            {canEditTicket && (
+              <Button
+                variant="outline"
+                size="sm"
+                leftIcon={<Pencil size={14} />}
+                onClick={openEditModal}
+              >
+                Edit Ticket
+              </Button>
+            )}
+
+            {canEditTicket && (
               <Button
                 variant="primary"
                 size="sm"
@@ -384,18 +460,6 @@ export const TicketDetailView: React.FC<TicketDetailViewProps> = ({
                     <>
                       <button
                         style={{ width: '100%', padding: '6px 14px', textAlign: 'left', background: 'none', border: 'none', fontSize: '12px', cursor: 'pointer' }}
-                        onClick={() => {
-                          const nextPriority = priority === 'High' ? 'Medium' : priority === 'Medium' ? 'Urgent' : 'High';
-                          appendAudit(`Priority changed: ${priority} → ${nextPriority}`);
-                          setPriority(nextPriority);
-                          onShowToast('info', 'Priority Changed', `Priority updated to ${nextPriority}.`);
-                        }}
-                      >
-                        Change Priority
-                      </button>
-
-                      <button
-                        style={{ width: '100%', padding: '6px 14px', textAlign: 'left', background: 'none', border: 'none', fontSize: '12px', cursor: 'pointer' }}
                         onClick={() => setIsReassignModalOpen(true)}
                       >
                         Reassign Agent
@@ -426,6 +490,34 @@ export const TicketDetailView: React.FC<TicketDetailViewProps> = ({
       <div className="ticket-detail-layout">
         {/* LEFT COLUMN: CONVERSATION & WORK AREA */}
         <div className="ticket-main-panel">
+          <div className="ticket-request-details-card">
+            <div className="ticket-request-details-header">
+              <div>
+                <h3 className="text-h3">Request details</h3>
+                <p className="text-caption">Original subject and description for this ticket</p>
+              </div>
+              {canEditTicket && (
+                <Button variant="ghost" size="sm" leftIcon={<Pencil size={13} />} onClick={openEditModal}>
+                  Edit
+                </Button>
+              )}
+            </div>
+            <div className="ticket-request-details-body">
+              <div className="ticket-request-detail-row">
+                <span className="ticket-request-detail-label">Subject</span>
+                <span className="ticket-request-detail-value">{title}</span>
+              </div>
+              <div className="ticket-request-detail-row">
+                <span className="ticket-request-detail-label">Description</span>
+                <p className="ticket-request-detail-description">{description}</p>
+              </div>
+              <div className="ticket-request-detail-row">
+                <span className="ticket-request-detail-label">Priority</span>
+                <PriorityBadge priority={priority} />
+              </div>
+            </div>
+          </div>
+
           <div className="conversation-card">
             <div className="conversation-card-header">
               <div>
@@ -766,55 +858,36 @@ export const TicketDetailView: React.FC<TicketDetailViewProps> = ({
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
-              <div className="compact-attachment-item">
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <Paperclip size={13} style={{ color: 'var(--color-primary-600)' }} />
-                  <span style={{ fontWeight: 500, color: 'var(--text-primary)' }}>attendance-aug17.png</span>
-                  <span style={{ color: 'var(--text-muted)', fontSize: '11px' }}>(245 KB)</span>
-                </div>
+              {ticketAttachments.length === 0 ? (
+                <span className="text-caption" style={{ color: 'var(--text-muted)' }}>No attachments</span>
+              ) : (
+                ticketAttachments.map(file => (
+                  <div key={file.name} className="compact-attachment-item">
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <Paperclip size={13} style={{ color: 'var(--color-primary-600)' }} />
+                      <span style={{ fontWeight: 500, color: 'var(--text-primary)' }}>{file.name}</span>
+                      <span style={{ color: 'var(--text-muted)', fontSize: '11px' }}>({file.size})</span>
+                    </div>
 
-                <div style={{ display: 'flex', gap: '4px' }}>
-                  <IconButton
-                    icon={<Eye size={13} />}
-                    ariaLabel="Preview"
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => onShowToast('info', 'Previewing File', 'Previewing attendance-aug17.png')}
-                  />
-                  <IconButton
-                    icon={<Download size={13} />}
-                    ariaLabel="Download"
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => onShowToast('info', 'Downloading File', 'Downloading attendance-aug17.png')}
-                  />
-                </div>
-              </div>
-
-              <div className="compact-attachment-item">
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <Paperclip size={13} style={{ color: 'var(--color-primary-600)' }} />
-                  <span style={{ fontWeight: 500, color: 'var(--text-primary)' }}>attendance-record.pdf</span>
-                  <span style={{ color: 'var(--text-muted)', fontSize: '11px' }}>(182 KB)</span>
-                </div>
-
-                <div style={{ display: 'flex', gap: '4px' }}>
-                  <IconButton
-                    icon={<Eye size={13} />}
-                    ariaLabel="Preview"
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => onShowToast('info', 'Previewing File', 'Previewing attendance-record.pdf')}
-                  />
-                  <IconButton
-                    icon={<Download size={13} />}
-                    ariaLabel="Download"
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => onShowToast('info', 'Downloading File', 'Downloading attendance-record.pdf')}
-                  />
-                </div>
-              </div>
+                    <div style={{ display: 'flex', gap: '4px' }}>
+                      <IconButton
+                        icon={<Eye size={13} />}
+                        ariaLabel="Preview"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => onShowToast('info', 'Previewing File', `Previewing ${file.name}`)}
+                      />
+                      <IconButton
+                        icon={<Download size={13} />}
+                        ariaLabel="Download"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => onShowToast('info', 'Downloading File', `Downloading ${file.name}`)}
+                      />
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
           </div>
 
@@ -842,6 +915,87 @@ export const TicketDetailView: React.FC<TicketDetailViewProps> = ({
           </div>
         </div>
       </div>
+
+      {/* EDIT TICKET MODAL */}
+      <Modal
+        isOpen={isEditModalOpen}
+        onClose={() => setIsEditModalOpen(false)}
+        title={`Edit Ticket ${ticketId}`}
+        subtitle="Update subject, description, priority, or attachments. Not available for resolved or closed tickets."
+        maxWidth="600px"
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setIsEditModalOpen(false)}>Cancel</Button>
+            <Button variant="primary" onClick={handleSaveTicketEdit} disabled={!editTitle.trim()}>
+              Save Changes
+            </Button>
+          </>
+        }
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
+          <FormField label="Subject" required>
+            <TextInput
+              value={editTitle}
+              onChange={e => setEditTitle(e.target.value)}
+              placeholder="Brief summary of the request"
+            />
+          </FormField>
+
+          <FormField label="Description">
+            <TextareaInput
+              value={editDescription}
+              onChange={e => setEditDescription(e.target.value)}
+              placeholder="Describe the issue in detail"
+              rows={4}
+            />
+          </FormField>
+
+          <FormField label="Priority">
+            <SelectInput
+              value={editPriority}
+              onChange={e => setEditPriority(e.target.value as TicketPriority)}
+            >
+              <option value="Low">Low</option>
+              <option value="Medium">Medium</option>
+              <option value="High">High</option>
+              <option value="Urgent">Urgent</option>
+            </SelectInput>
+          </FormField>
+
+          <FormField label="Attachments">
+            <div className="ticket-edit-attachments">
+              {editAttachments.length === 0 ? (
+                <span className="text-caption" style={{ color: 'var(--text-muted)' }}>No attachments</span>
+              ) : (
+                editAttachments.map((file, idx) => (
+                  <div key={`${file.name}-${idx}`} className="ticket-edit-attachment-row">
+                    <div className="ticket-edit-attachment-info">
+                      <Paperclip size={13} />
+                      <span>{file.name}</span>
+                      <span className="ticket-edit-attachment-size">({file.size})</span>
+                    </div>
+                    <IconButton
+                      icon={<Trash2 size={13} />}
+                      ariaLabel={`Remove ${file.name}`}
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setEditAttachments(prev => prev.filter((_, i) => i !== idx))}
+                    />
+                  </div>
+                ))
+              )}
+              <Button
+                variant="outline"
+                size="sm"
+                leftIcon={<Paperclip size={14} />}
+                onClick={handleAddEditAttachment}
+              >
+                Add attachment
+              </Button>
+            </div>
+          </FormField>
+        </div>
+      </Modal>
 
       {/* RESOLVE CONFIRMATION MODAL */}
       <Modal

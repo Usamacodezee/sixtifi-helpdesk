@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { PageHeader } from '../components/ui/PageHeader';
 import { Button, IconButton } from '../components/ui/Button';
-import { StatusBadge } from '../components/ui/Badge';
 import { SearchInput, SelectInput, FormField, TextInput, TextareaInput } from '../components/ui/FormControls';
 import { Table, Column } from '../components/ui/Table';
 import { Modal } from '../components/ui/Modal';
@@ -608,12 +607,6 @@ export const TeamsView: React.FC<TeamsViewProps> = ({
           <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>0</span>
         )
       )
-    },
-    {
-      key: 'status',
-      header: 'Status',
-      sortable: true,
-      render: item => <StatusBadge status={item.status === 'Active' ? 'Open' : 'Closed'} />
     }
   ];
 

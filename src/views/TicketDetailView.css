@@ -338,7 +338,6 @@
   background-color: #EF4444;
 }
 
-/* Compact Attachment Row */
 .compact-attachment-item {
   display: flex;
   align-items: center;
@@ -398,6 +397,88 @@
 .timeline-audit-time {
   font-size: 11px;
   color: var(--text-muted);
+}
+
+.ticket-request-details-card {
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-xs);
+  padding: var(--space-5) var(--space-6);
+}
+
+.ticket-request-details-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+}
+
+.ticket-request-details-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.ticket-request-detail-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.ticket-request-detail-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.ticket-request-detail-value {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.ticket-request-detail-description {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+  white-space: pre-wrap;
+}
+
+.ticket-edit-attachments {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.ticket-edit-attachment-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding: 8px 10px;
+  background: var(--bg-subtle);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+}
+
+.ticket-edit-attachment-info {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--text-primary);
+  min-width: 0;
+}
+
+.ticket-edit-attachment-size {
+  color: var(--text-muted);
+  font-size: 11px;
+  flex-shrink: 0;
 }
 
 /* Responsive Grid Rules */
